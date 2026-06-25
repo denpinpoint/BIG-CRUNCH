@@ -1,9 +1,17 @@
 import type { UpgradeDef } from '../types';
 import type { GameState } from '../state/GameState';
 
-/** Geometric cost curve — guarantees diminishing returns, no runaway growth. */
+/**
+ * Geometric cost curve. A global growth bonus and base multiplier steepen every
+ * upgrade so high levels cost orders of magnitude more than the first — buying
+ * everything should take many runs, not one sitting. Tune these two knobs to
+ * shift the whole economy without touching 44 individual definitions.
+ */
+const COST_GROWTH_BONUS = 0.35;
+const COST_BASE_MULT = 2.5;
+
 export function upgradeCost(def: UpgradeDef, level: number): number {
-  return Math.ceil(def.baseCost * Math.pow(def.costGrowth, level));
+  return Math.ceil(def.baseCost * COST_BASE_MULT * Math.pow(def.costGrowth + COST_GROWTH_BONUS, level));
 }
 
 export function isMaxed(def: UpgradeDef, gs: GameState): boolean {

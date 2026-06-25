@@ -107,9 +107,9 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'compressor', name: 'Mass Compressor', category: 'automation', currency: 'energy',
-    description: 'Passive mass scaling with your current size.',
+    description: 'Passive mass that scales with the square root of your size.',
     baseCost: 5, costGrowth: 1.5, maxLevel: 25, unlockMass: 150,
-    effectLabel: (l) => `+${(l * 0.12).toFixed(2)}% of mass/s`,
+    effectLabel: (l) => `+${(l * 0.04).toFixed(2)}·√mass /s`,
   },
   {
     id: 'darkCollector', name: 'Dark Collector', category: 'automation', currency: 'energy',

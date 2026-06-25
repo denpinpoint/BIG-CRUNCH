@@ -24,10 +24,16 @@ export const CONFIG = {
   BASE_SPAWN_INTERVAL: 0.28, // seconds between spawn attempts
   SPAWN_MARGIN: 240, // world units beyond view edge to spawn / cull
 
-  /** Camera zoom: eases out as the player grows. */
-  ZOOM_MIN: 0.16,
+  /**
+   * Camera zoom eases out as the player grows so the singularity holds a roughly
+   * constant on-screen size (apparent radius ≈ ZOOM_REF_RADIUS) instead of
+   * engulfing the screen. The floor is intentionally tiny: the camera keeps
+   * zooming out with growth, conveying scale through the shrinking universe
+   * rather than a bloating black hole.
+   */
+  ZOOM_MIN: 0.02,
   ZOOM_MAX: 1.25,
-  ZOOM_REF_RADIUS: 26, // player radius at zoom 1.0
+  ZOOM_REF_RADIUS: 30, // target on-screen player radius (px)
 
   /** Idle / offline. */
   OFFLINE_MAX_SECONDS: 8 * 3600,

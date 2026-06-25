@@ -197,7 +197,7 @@ export class GameState {
       critPower: 1 + 0.25 * u('critPower'),
 
       beaconFlat: 0.4 * u('beacon') * (1 + 0.15 * u('beaconBoost')),
-      compressorPct: 0.0012 * u('compressor'),
+      compressorPct: 0.04 * u('compressor'),
       darkEnergyFlat: 0.25 * u('darkCollector'),
       nebulaMass: 1 * u('nebulaHarvester'),
       nebulaEnergy: 0.4 * u('nebulaHarvester'),

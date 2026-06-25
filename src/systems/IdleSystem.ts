@@ -15,7 +15,10 @@ export interface OfflineReport {
 export class IdleSystem {
   massRate(gs: GameState): number {
     const d = gs.derived;
-    const base = d.beaconFlat + d.nebulaMass + d.compressorPct * gs.data.mass;
+    // Compressor scales with √mass — meaningful at scale but sub-exponential, so
+    // mass can never run away on idle alone (a flat %-of-mass term would).
+    const compressor = d.compressorPct * Math.sqrt(gs.data.mass);
+    const base = d.beaconFlat + d.nebulaMass + compressor;
     return base * d.passiveMult;
   }
 

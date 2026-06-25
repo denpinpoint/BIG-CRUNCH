@@ -151,7 +151,17 @@
 }
 .overlay.show { opacity: 1; pointer-events: auto; }
 
+/* The blanket `#ui-root > * { pointer-events:auto }` rule has id-level
+   specificity and would otherwise keep a *hidden* overlay intercepting every
+   click. These id-scoped overrides win it back so closed overlays — and the
+   purely cosmetic toasts/banner/hint — never block input. */
+#ui-root > .overlay:not(.show) { pointer-events: none; }
+#ui-root > .toast-stack,
+#ui-root > .event-banner,
+#ui-root > .controls-hint { pointer-events: none; }
+
 .modal {
+  position: relative;
   width: min(92vw, 560px); max-height: 86vh; overflow-y: auto;
   padding: 22px; border-radius: 16px;
   background: linear-gradient(180deg, rgba(20, 12, 42, 0.96), rgba(8, 5, 20, 0.96));
