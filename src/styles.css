@@ -1,0 +1,189 @@
+/* ============================================================================
+   Event Horizon: Eat the Universe — global styles
+   Dark cosmic minimalism. Everything glows. Minimal, readable UI.
+   ========================================================================== */
+
+:root {
+  --bg: #05030f;
+  --violet: #6c3fd6;
+  --violet-deep: #2a1a52;
+  --cyan: #54e6ff;
+  --gold: #ffd166;
+  --white: #f4f1ff;
+  --danger: #ff5d73;
+  --good: #7dffb0;
+  --ui-bg: rgba(12, 8, 28, 0.72);
+  --ui-border: rgba(124, 92, 255, 0.35);
+  --ui-glow: 0 0 24px rgba(108, 63, 214, 0.45);
+  --font: "Rajdhani", "Segoe UI", "Helvetica Neue", system-ui, -apple-system,
+    sans-serif;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font);
+  /* CrazyGames mobile requirement: prevent magnification & context menus. */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#game-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+#ui-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#ui-root > * {
+  pointer-events: auto;
+}
+
+/* ---- Generic glassy panel ---- */
+.panel {
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--ui-glow);
+}
+
+button {
+  font-family: var(--font);
+  color: var(--white);
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 16px;
+}
+
+.btn {
+  background: linear-gradient(
+    180deg,
+    rgba(108, 63, 214, 0.5),
+    rgba(42, 26, 82, 0.6)
+  );
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: transform 0.08s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  text-transform: uppercase;
+  font-size: 14px;
+}
+.btn:hover {
+  filter: brightness(1.18);
+  box-shadow: 0 0 18px rgba(84, 230, 255, 0.4);
+}
+.btn:active {
+  transform: scale(0.96);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+.btn.primary {
+  background: linear-gradient(
+    180deg,
+    rgba(84, 230, 255, 0.5),
+    rgba(40, 110, 150, 0.6)
+  );
+  border-color: rgba(84, 230, 255, 0.6);
+}
+.btn.ghost {
+  background: rgba(20, 14, 40, 0.5);
+}
+
+/* ============================ Boot screen ================================ */
+#boot-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 45%, #160c33 0%, #05030f 70%);
+  z-index: 50;
+  transition: opacity 0.6s ease;
+  gap: 14px;
+}
+#boot-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-core {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #000 38%, var(--violet) 52%, transparent 70%);
+  box-shadow: 0 0 60px 12px rgba(108, 63, 214, 0.7),
+    inset 0 0 20px rgba(84, 230, 255, 0.4);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 50px 8px rgba(108,63,214,0.6); }
+  50% { transform: scale(1.12); box-shadow: 0 0 80px 18px rgba(84,230,255,0.55); }
+}
+.boot-title {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  margin-top: 18px;
+  text-shadow: 0 0 24px rgba(84, 230, 255, 0.6);
+}
+.boot-sub {
+  font-size: 15px;
+  letter-spacing: 6px;
+  color: var(--cyan);
+  opacity: 0.85;
+}
+.boot-bar {
+  width: 220px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(124, 92, 255, 0.18);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.boot-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  transition: width 0.3s ease;
+}
