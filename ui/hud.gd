@@ -1,16 +1,28 @@
 extends CanvasLayer
-## HUD root: builds all UI in code (crosshair, hotbar, survival stats, break
-## progress, mode menu, death screen, debug overlay) and wires them to the
-## player systems via signals.
+## HUD root: builds all UI in code (crosshair, hotbar, survival stats,
+## inventory + furnace screens, mode menu, death screen, debug overlay) and
+## wires them to the player systems via signals.
+## Block-breaking feedback is the in-world crack overlay (block_interaction),
+## not a UI bar.
 
 var hotbar: Hotbar
 var stats_bar: StatsBar
 var death_screen: DeathScreen
 var debug_overlay: DebugOverlay
+var inventory_screen: InventoryScreen
+var furnace_screen: FurnaceScreen
 
-var _progress: ProgressBar
+## True while a container screen (inventory/furnace) is on screen.
+var ui_open: bool:
+	get:
+		return (
+			(inventory_screen != null and inventory_screen.visible)
+			or (furnace_screen != null and furnace_screen.visible)
+		)
+
 var _message: Label
 var _message_tween: Tween
+var _player: Node
 
 
 func _ready() -> void:
@@ -21,29 +33,13 @@ func _ready() -> void:
 	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(crosshair)
 
-	_progress = ProgressBar.new()
-	_progress.min_value = 0.0
-	_progress.max_value = 1.0
-	_progress.show_percentage = false
-	_progress.anchor_left = 0.5
-	_progress.anchor_right = 0.5
-	_progress.anchor_top = 0.5
-	_progress.anchor_bottom = 0.5
-	_progress.offset_left = -60
-	_progress.offset_right = 60
-	_progress.offset_top = 26
-	_progress.offset_bottom = 36
-	_progress.visible = false
-	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_progress)
-
 	hotbar = Hotbar.new()
 	hotbar.anchor_left = 0.5
 	hotbar.anchor_right = 0.5
 	hotbar.anchor_top = 1.0
 	hotbar.anchor_bottom = 1.0
-	hotbar.offset_left = -196
-	hotbar.offset_right = 196
+	hotbar.offset_left = -230
+	hotbar.offset_right = 230
 	hotbar.offset_top = -64
 	hotbar.offset_bottom = -12
 	hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -54,8 +50,8 @@ func _ready() -> void:
 	stats_bar.anchor_right = 0.5
 	stats_bar.anchor_top = 1.0
 	stats_bar.anchor_bottom = 1.0
-	stats_bar.offset_left = -196
-	stats_bar.offset_right = 196
+	stats_bar.offset_left = -230
+	stats_bar.offset_right = 230
 	stats_bar.offset_top = -94
 	stats_bar.offset_bottom = -68
 	stats_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -66,8 +62,8 @@ func _ready() -> void:
 	_message.anchor_right = 0.5
 	_message.anchor_top = 1.0
 	_message.anchor_bottom = 1.0
-	_message.offset_left = -200
-	_message.offset_right = 200
+	_message.offset_left = -220
+	_message.offset_right = 220
 	_message.offset_top = -130
 	_message.offset_bottom = -104
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -80,20 +76,27 @@ func _ready() -> void:
 	debug_overlay.visible = false
 	add_child(debug_overlay)
 
+	# Container screens sit under the death screen so dying wins visually.
+	inventory_screen = InventoryScreen.new()
+	inventory_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(inventory_screen)
+
+	furnace_screen = FurnaceScreen.new()
+	furnace_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(furnace_screen)
+
 	death_screen = DeathScreen.new()
 	death_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(death_screen)
 
 	# --- Wiring ---
-	var player: Node = get_tree().get_first_node_in_group("player")
-	if player != null:
-		var stats: Node = player.get_node("Stats")
+	_player = get_tree().get_first_node_in_group("player")
+	if _player != null:
+		var stats: Node = _player.get_node("Stats")
 		stats.health_changed.connect(func(h: float) -> void: stats_bar.set_health(h))
 		stats.hunger_changed.connect(func(h: float) -> void: stats_bar.set_hunger(h))
-		stats.died.connect(death_screen.open)
+		stats.died.connect(_on_player_died)
 		death_screen.respawn_requested.connect(stats.respawn)
-		var interaction: Node = player.get_node("BlockInteraction")
-		interaction.breaking.connect(_on_breaking)
 
 	GameMode.mode_changed.connect(_on_mode_changed)
 	_on_mode_changed(GameMode.mode)
@@ -107,11 +110,43 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug"):
 		debug_overlay.visible = not debug_overlay.visible
+	elif event.is_action_pressed("inventory"):
+		if ui_open:
+			close_ui()
+			get_viewport().set_input_as_handled()
+		elif _can_open_ui():
+			inventory_screen.open()
+			get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel") and ui_open:
+		close_ui()
+		get_viewport().set_input_as_handled()
 
 
-func _on_breaking(progress: float) -> void:
-	_progress.visible = progress > 0.0
-	_progress.value = progress
+## Furnace right-clicks land here (from block_interaction).
+func open_furnace(bp: Vector3i) -> void:
+	if _can_open_ui() and not ui_open:
+		furnace_screen.open_at(bp)
+
+
+func close_ui() -> void:
+	if inventory_screen.visible:
+		inventory_screen.close()
+	if furnace_screen.visible:
+		furnace_screen.close()
+	# Hand the mouse back to the game.
+	if _player != null and _player.get_node("Stats").alive and not get_tree().paused:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _can_open_ui() -> bool:
+	if get_tree().paused or _player == null:
+		return false
+	return not _player.frozen and _player.get_node("Stats").alive
+
+
+func _on_player_died() -> void:
+	close_ui()
+	death_screen.open()
 
 
 func _on_mode_changed(_mode: int) -> void:

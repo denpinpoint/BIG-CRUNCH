@@ -7,15 +7,18 @@ extends Node
 ## of collider tessellation. Mobs, on the other hand, ARE physics bodies, so
 ## melee attacks use a physics ray on the mob layer; whichever hit is closer
 ## (mob vs block) wins the click.
-
-signal breaking(progress: float)  # 0..1, 0 = not breaking (HUD progress bar)
+##
+## Survival mining shows a Minecraft-style crack overlay that deepens with
+## progress (textures from BlockLibrary.crack_materials) — no UI bar.
 
 @onready var _player: CharacterBody3D = get_parent()
 @onready var _camera: Camera3D = get_parent().get_node("Head/Camera")
 
 var _world: Node3D
-var _hotbar: Control
+var _furnaces: Node
+var _hud: Node
 var _highlight: MeshInstance3D
+var _crack: MeshInstance3D
 
 var _break_target := Vector3i(0, -1000, 0)
 var _break_progress := 0.0
@@ -28,7 +31,7 @@ func _ready() -> void:
 	# Siblings registered their groups in their own _ready (scene order puts
 	# World before Player under Main).
 	_world = get_tree().get_first_node_in_group("world")
-	_build_highlight()
+	_build_overlays()
 
 
 func _physics_process(delta: float) -> void:
@@ -37,7 +40,7 @@ func _physics_process(delta: float) -> void:
 	_creative_break_cd = maxf(_creative_break_cd - delta, 0.0)
 
 	if not _player.can_interact():
-		_highlight.visible = false
+		_hide_overlays()
 		_reset_break()
 		return
 
@@ -49,7 +52,7 @@ func _physics_process(delta: float) -> void:
 
 	# A mob in front of the targeted block soaks the click.
 	if not mob_hit.is_empty() and (block_hit.is_empty() or mob_hit["dist"] < block_hit["dist"]):
-		_highlight.visible = false
+		_hide_overlays()
 		_reset_break()
 		if Input.is_action_pressed("break") and _attack_cd <= 0.0:
 			_attack_cd = Constants.PLAYER_ATTACK_COOLDOWN
@@ -59,7 +62,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if block_hit.is_empty():
-		_highlight.visible = false
+		_hide_overlays()
 		_reset_break()
 		return
 
@@ -79,8 +82,9 @@ func _physics_process(delta: float) -> void:
 func _handle_breaking(bp: Vector3i, id: int, delta: float) -> void:
 	if GameMode.is_creative():
 		# Instant break, any block, hold to keep chewing through terrain.
+		# Creative yields no drops.
 		if _creative_break_cd <= 0.0:
-			_world.set_block(bp, BlockTypes.AIR)
+			_break_block(bp, id, false)
 			_creative_break_cd = Constants.CREATIVE_BREAK_DELAY
 		return
 
@@ -94,18 +98,41 @@ func _handle_breaking(bp: Vector3i, id: int, delta: float) -> void:
 	# Hold-to-mine: time scales with block hardness.
 	_break_progress += delta / maxf(hard * Constants.BREAK_TIME_PER_HARDNESS, 0.05)
 	if _break_progress >= 1.0:
-		_world.set_block(bp, BlockTypes.AIR)
-		# TODO: spawn an item-drop entity here once pickups exist.
+		_break_block(bp, id, true)
 		_reset_break()
 	else:
-		breaking.emit(_break_progress)
+		# Progressive crack overlay on the block itself, like the original.
+		var stage := clampi(
+			int(_break_progress * BlockLibrary.CRACK_STAGES),
+			0, BlockLibrary.CRACK_STAGES - 1
+		)
+		_crack.visible = true
+		_crack.material_override = BlockLibrary.crack_materials[stage]
+		_crack.global_position = Vector3(bp) + Vector3.ONE * 0.5
+
+
+func _break_block(bp: Vector3i, id: int, give_drops: bool) -> void:
+	if id == BlockTypes.FURNACE:
+		_get_furnaces().on_broken(bp)  # hand over its contents first
+	if give_drops:
+		var drop := BlockTypes.drop_for(id)
+		if drop != BlockTypes.AIR:
+			# TODO: spawn item-drop entities; leftovers vanish if the
+			# inventory is full.
+			Inventory.add_item(drop, 1)
+	_world.set_block(bp, BlockTypes.AIR)
 
 
 func _handle_placing(bp: Vector3i, normal: Vector3i) -> void:
-	if _hotbar == null:
-		_hotbar = get_tree().get_first_node_in_group("hotbar")
-		if _hotbar == null:
-			return
+	# Right-clicking a furnace opens it (hold crouch to build against it).
+	if _world.get_block(bp) == BlockTypes.FURNACE and not Input.is_action_pressed("crouch"):
+		_get_hud().open_furnace(bp)
+		_place_cd = Constants.PLACE_REPEAT_DELAY
+		return
+
+	var id := Inventory.selected_id()
+	if id == 0 or not BlockTypes.is_block(id):
+		return  # nothing placeable in hand
 	var cell := bp + normal
 	var current: int = _world.get_block(cell)
 	# Only into air or replaceable fluid.
@@ -114,15 +141,21 @@ func _handle_placing(bp: Vector3i, normal: Vector3i) -> void:
 	if _intersects_player(cell):
 		return  # never build a block inside your own body
 	# TODO: also reject cells overlapping mobs.
-	_world.set_block(cell, _hotbar.selected_block())
+	_world.set_block(cell, id)
+	if GameMode.is_survival():
+		Inventory.consume_selected(1)
 	_place_cd = Constants.PLACE_REPEAT_DELAY
 
 
 func _reset_break() -> void:
-	if _break_progress != 0.0:
-		breaking.emit(0.0)
 	_break_progress = 0.0
 	_break_target = Vector3i(0, -1000, 0)
+	_crack.visible = false
+
+
+func _hide_overlays() -> void:
+	_highlight.visible = false
+	_crack.visible = false
 
 
 ## Voxel DDA (Amanatides & Woo): step the ray cell-by-cell through the block
@@ -187,9 +220,23 @@ func _intersects_player(cell: Vector3i) -> bool:
 	return player_aabb.intersects(AABB(Vector3(cell), Vector3.ONE))
 
 
-## Wireframe cube (12 edges as a LINES surface), slightly inflated so it
-## never z-fights the block faces it outlines.
-func _build_highlight() -> void:
+func _get_furnaces() -> Node:
+	if _furnaces == null:
+		_furnaces = get_tree().get_first_node_in_group("furnaces")
+	return _furnaces
+
+
+func _get_hud() -> Node:
+	if _hud == null:
+		_hud = get_tree().get_first_node_in_group("hud")
+	return _hud
+
+
+## Two overlay meshes that follow the targeted block:
+##  * a wireframe cube (12 edges as a LINES surface), slightly inflated so it
+##    never z-fights the block faces it outlines
+##  * a crack box that shows BlockLibrary's progressive damage textures
+func _build_overlays() -> void:
 	var lo := -0.004
 	var hi := 1.004
 	var corners := [
@@ -219,3 +266,11 @@ func _build_highlight() -> void:
 	_highlight.visible = false
 	_highlight.top_level = true  # world-space position, not relative to player
 	add_child(_highlight)
+
+	var crack_box := BoxMesh.new()
+	crack_box.size = Vector3.ONE * 1.006
+	_crack = MeshInstance3D.new()
+	_crack.mesh = crack_box
+	_crack.visible = false
+	_crack.top_level = true
+	add_child(_crack)

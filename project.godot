@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 
 GameMode="*res://player/game_mode.gd"
 BlockLibrary="*res://blocks/block_library.gd"
+Inventory="*res://player/inventory.gd"
 SaveManager="*res://save/save_manager.gd"
 
 [display]

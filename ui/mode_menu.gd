@@ -45,7 +45,7 @@ func _ready() -> void:
 
 	box.add_child(_spacer(16))
 	var hint := Label.new()
-	hint.text = "WASD move · Space jump · LMB mine · RMB place · 1-8 hotbar\nF4 switch mode · F5 save · F9 load · F3 debug · Esc frees the mouse"
+	hint.text = "WASD move · Space jump · LMB mine · RMB place · 1-9 hotbar · E inventory\nF4 switch mode · F5 save · F9 load · F3 debug · Esc frees the mouse"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.modulate = Color(1, 1, 1, 0.55)
 	box.add_child(hint)

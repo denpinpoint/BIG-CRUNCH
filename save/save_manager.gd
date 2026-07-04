@@ -5,15 +5,16 @@ extends Node
 ## Save format: one JSON file at user://voxelcraft_save.json containing
 ##   version, world seed, game mode, time of day,
 ##   player {position, yaw, pitch, health, hunger, spawn point},
-##   hotbar selection, and the EDIT OVERLAY ONLY — a dict of
-##   "x,y,z" -> block id for every block the player changed.
+##   the full 36-slot inventory + hotbar selection,
+##   every furnace's contents/progress, and the EDIT OVERLAY ONLY — a dict
+##   of "x,y,z" -> block id for every block the player changed.
 ## Terrain is never serialized: on load the world regenerates from the seed
 ## and re-applies the overlay, so save files stay tiny no matter how far you
 ## explore. Live mobs are intentionally NOT saved — the spawner repopulates
 ## the world naturally. TODO: persistent named mobs.
 
 const SAVE_PATH := "user://voxelcraft_save.json"
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 
 
 func has_save() -> bool:
@@ -34,7 +35,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func save_game() -> bool:
 	var world: Node = get_tree().get_first_node_in_group("world")
 	var player: Node3D = get_tree().get_first_node_in_group("player")
-	var hotbar: Node = get_tree().get_first_node_in_group("hotbar")
+	var furnaces: Node = get_tree().get_first_node_in_group("furnaces")
 	var daynight: Node = get_tree().get_first_node_in_group("daynight")
 	if world == null or player == null or player.frozen:
 		return false  # nothing sensible to save yet
@@ -57,7 +58,9 @@ func save_game() -> bool:
 			"hunger": stats.hunger,
 			"spawn": _v3_to_array(player.spawn_point),
 		},
-		"hotbar": hotbar.selected if hotbar != null else 0,
+		"inventory": Inventory.serialize(),
+		"hotbar": Inventory.selected,
+		"furnaces": furnaces.serialize() if furnaces != null else {},
 		"edits": edits_out,
 	}
 
@@ -84,9 +87,10 @@ func load_game() -> bool:
 
 	var world: Node = get_tree().get_first_node_in_group("world")
 	var player: Node3D = get_tree().get_first_node_in_group("player")
-	var hotbar: Node = get_tree().get_first_node_in_group("hotbar")
+	var furnaces: Node = get_tree().get_first_node_in_group("furnaces")
 	var daynight: Node = get_tree().get_first_node_in_group("daynight")
 	var main: Node = get_tree().get_first_node_in_group("main")
+	var hud: Node = get_tree().get_first_node_in_group("hud")
 	if world == null or player == null:
 		return false
 
@@ -111,14 +115,17 @@ func load_game() -> bool:
 	player.get_node("Stats").restore(float(p["health"]), float(p["hunger"]))
 
 	GameMode.set_mode(int(parsed["mode"]))
-	if hotbar != null:
-		hotbar.select(int(parsed.get("hotbar", 0)))
+	Inventory.deserialize(parsed.get("inventory", []))
+	Inventory.select(int(parsed.get("hotbar", 0)))
+	if furnaces != null:
+		furnaces.deserialize(parsed.get("furnaces", {}))
 	if daynight != null:
 		daynight.time_of_day = float(parsed.get("time_of_day", 0.35))
 
-	# Loading while dead brings you back alive — clear the death screen.
-	var hud: Node = get_tree().get_first_node_in_group("hud")
+	# Loading while dead brings you back alive — clear the death screen, and
+	# close any open container UI whose backing state just vanished.
 	if hud != null:
+		hud.close_ui()
 		hud.death_screen.visible = false
 	if not get_tree().paused:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

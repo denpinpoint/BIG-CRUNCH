@@ -10,10 +10,11 @@ class_name InputSetup
 ##   jump          Space      sprint     Shift
 ##   crouch        Ctrl       (fly down while flying)
 ##   break         Left mouse  place     Right mouse
-##   hotbar_1..8   1..8        (mouse wheel also cycles)
+##   inventory     E           (tabs in Creative, 2x2 crafting in Survival)
+##   hotbar_1..9   1..9        (mouse wheel also cycles)
 ##   toggle_mode   F4          toggle_debug F3
 ##   save_game     F5          load_game  F9
-##   Esc releases the mouse (built-in ui_cancel), click recaptures.
+##   Esc releases the mouse / closes screens, click recaptures.
 
 
 static func register_actions() -> void:
@@ -26,11 +27,12 @@ static func register_actions() -> void:
 	_key("jump", KEY_SPACE)
 	_key("sprint", KEY_SHIFT)
 	_key("crouch", KEY_CTRL)
+	_key("inventory", KEY_E)
 	_key("toggle_mode", KEY_F4)
 	_key("toggle_debug", KEY_F3)
 	_key("save_game", KEY_F5)
 	_key("load_game", KEY_F9)
-	for i in range(1, 9):
+	for i in range(1, 10):
 		_key("hotbar_%d" % i, KEY_1 + i - 1)
 	_mouse("break", MOUSE_BUTTON_LEFT)
 	_mouse("place", MOUSE_BUTTON_RIGHT)

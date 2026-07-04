@@ -5,9 +5,8 @@ extends RefCounted
 ## The single source of truth is `generate_block(wx, wy, wz)`: a pure function
 ## of world-space block coordinates + the seed. The same seed always produces
 ## the same world, and because it is sampled in WORLD space (never chunk-local
-## space), everything — terrain, caves, trees — stitches seamlessly across
-## chunk borders for free: both sides of a border evaluate the exact same
-## function.
+## space), everything — terrain, cliffs, caves, ores, trees — stitches
+## seamlessly across chunk borders: both sides evaluate the same function.
 ##
 ## Thread safety: all FastNoiseLite instances are created once in _init() and
 ## only ever *read* afterwards, so any number of worker threads can generate
@@ -17,9 +16,17 @@ var world_seed: int
 
 var _height_noise: FastNoiseLite    # rolling base terrain
 var _mountain_noise: FastNoiseLite  # broad ridged uplift
+var _cliff_noise: FastNoiseLite     # plateau/terrace mask -> sheer cliff walls
 var _cave_cheese: FastNoiseLite     # 3D blob/cavern noise
 var _cave_worm_a: FastNoiseLite     # 3D winding tunnel field A
 var _cave_worm_b: FastNoiseLite     # 3D winding tunnel field B
+var _ore_noise: FastNoiseLite       # high-frequency 3D blobs -> ore veins
+
+# Columns this close to an underwater column count as shoreline (sand).
+const _BEACH_PROBES: Array[Vector2i] = [
+	Vector2i(4, 0), Vector2i(-4, 0), Vector2i(0, 4), Vector2i(0, -4),
+	Vector2i(3, 3), Vector2i(-3, 3), Vector2i(3, -3), Vector2i(-3, -3),
+]
 
 
 func _init(seed_value: int) -> void:
@@ -39,6 +46,13 @@ func _init(seed_value: int) -> void:
 	_mountain_noise.fractal_type = FastNoiseLite.FRACTAL_RIDGED
 	_mountain_noise.fractal_octaves = 3
 
+	_cliff_noise = FastNoiseLite.new()
+	_cliff_noise.seed = seed_value + 202
+	_cliff_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_cliff_noise.frequency = 0.004
+	_cliff_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_cliff_noise.fractal_octaves = 2
+
 	# Dedicated seeded 3D noises for caves, offset from the terrain seed so
 	# cave shapes are independent of the heightmap.
 	_cave_cheese = FastNoiseLite.new()
@@ -56,6 +70,11 @@ func _init(seed_value: int) -> void:
 	_cave_worm_b.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_cave_worm_b.frequency = 0.02
 
+	_ore_noise = FastNoiseLite.new()
+	_ore_noise.seed = seed_value + 9001
+	_ore_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_ore_noise.frequency = 0.09
+
 
 # --- Public API -------------------------------------------------------------
 
@@ -65,21 +84,29 @@ func generate_block(wx: int, wy: int, wz: int) -> int:
 
 
 ## Terrain surface height (top solid block y) for a column. Deterministic.
+## Three stacked layers:
+##  * rolling FBM base (gentle hills)
+##  * ridged mountain uplift (rare, tall)
+##  * cliff terraces: smoothstep over a NARROW band of a low-frequency noise
+##    turns a gradual gradient into a 12-14 block wall wherever the noise
+##    crosses the band — that's what produces the random sheer cliffs.
 func surface_height(wx: int, wz: int) -> int:
-	var base := float(Constants.SEA_LEVEL) + 2.0 + _height_noise.get_noise_2d(wx, wz) * 9.0
-	# Ridged noise squashed & squared: mostly flat, occasional bold mountains.
+	var base := float(Constants.SEA_LEVEL) + 3.0 + _height_noise.get_noise_2d(wx, wz) * 11.0
 	var m := maxf(0.0, _mountain_noise.get_noise_2d(wx, wz))
-	base += pow(m, 2.4) * 30.0
+	base += pow(m, 2.3) * 38.0
+	var c := _cliff_noise.get_noise_2d(wx, wz)
+	base += smoothstep(0.16, 0.24, c) * 14.0  # lower plateau wall
+	base += smoothstep(0.48, 0.56, c) * 12.0  # second tier on big plateaus
 	return clampi(int(floor(base)), 2, Constants.CHUNK_SIZE_Y - 8)
 
 
 ## Fills a whole chunk's flat block array. Same results as calling
 ## generate_block for every cell, but with per-column caching of heights and
-## tree data (the leaves pass samples a 5x5 column neighborhood, so caching
+## tree data (leaves + beach checks sample column neighborhoods, so caching
 ## matters a lot here).
-## PERF: this is the hottest generation path (~16k blocks + 3D cave noise per
-## chunk). It runs on worker threads. If it ever becomes the bottleneck, port
-## this file to C# or GDExtension — the algorithm translates 1:1.
+## PERF: this is the hottest generation path (~24k blocks + 3D cave/ore noise
+## per chunk). It runs on worker threads. If it ever becomes the bottleneck,
+## port this file to C# or GDExtension — the algorithm translates 1:1.
 func generate_chunk_data(cpos: Vector2i) -> PackedByteArray:
 	var data := PackedByteArray()
 	data.resize(Constants.CHUNK_SIZE_X * Constants.CHUNK_SIZE_Y * Constants.CHUNK_SIZE_Z)
@@ -120,12 +147,17 @@ func _block_at(wx: int, wy: int, wz: int, hcache: Dictionary[Vector2i, int], tca
 			# TODO: flood carved air with water/lava below a cave-water level.
 			# TODO: grass/dirt recovery on newly exposed cave ceilings.
 			return BlockTypes.AIR
-		var sandy := h <= Constants.BEACH_HEIGHT
-		if wy == h:
-			return BlockTypes.SAND if sandy else BlockTypes.GRASS
 		if wy >= h - 3:
-			return BlockTypes.SAND if sandy else BlockTypes.DIRT
-		return BlockTypes.STONE
+			# Surface crust: grass/dirt inland, sand ONLY on real shorelines
+			# (at water height AND with actual water nearby) and underwater.
+			if h < Constants.SEA_LEVEL:
+				return BlockTypes.SAND if h >= Constants.SEA_LEVEL - 7 else BlockTypes.STONE
+			if _is_beach(wx, wz, h, hcache):
+				return BlockTypes.SAND
+			if wy == h:
+				return BlockTypes.GRASS
+			return BlockTypes.DIRT
+		return _stone_or_ore(wx, wy, wz)
 
 	# Above the surface: water up to sea level...
 	if wy <= Constants.SEA_LEVEL:
@@ -168,6 +200,37 @@ func _block_at(wx: int, wy: int, wz: int, hcache: Dictionary[Vector2i, int], tca
 	return BlockTypes.AIR
 
 
+## Sand only forms next to actual water: the column must sit at water height
+## AND at least one probed neighbor column must be underwater. Low inland
+## plains stay grass.
+func _is_beach(wx: int, wz: int, h: int, hcache: Dictionary[Vector2i, int]) -> bool:
+	if h > Constants.SEA_LEVEL + 2:
+		return false
+	for probe: Vector2i in _BEACH_PROBES:
+		if _cached_height(wx + probe.x, wz + probe.y, hcache) < Constants.SEA_LEVEL:
+			return true
+	return false
+
+
+## Deep stone with embedded ore veins. One extra 3D noise sample per stone
+## block: where the high-frequency field spikes we place ore, and the vein's
+## TYPE comes from a hash of the 4x4x4 region it sits in — so a whole blob is
+## one consistent ore instead of confetti. Rarity gates by depth:
+##   coal anywhere, iron below y=52, gold below y=26, diamond below y=14.
+func _stone_or_ore(wx: int, wy: int, wz: int) -> int:
+	var n := _ore_noise.get_noise_3d(wx, wy, wz)
+	if n < 0.62:
+		return BlockTypes.STONE
+	var r := _hash3(wx >> 2, wy >> 2, wz >> 2)
+	if wy <= 14 and r > 0.90:
+		return BlockTypes.DIAMOND_ORE
+	if wy <= 26 and r > 0.78:
+		return BlockTypes.GOLD_ORE
+	if wy <= 52 and r > 0.45:
+		return BlockTypes.IRON_ORE
+	return BlockTypes.COAL_ORE
+
+
 func _cached_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int]) -> int:
 	var key := Vector2i(wx, wz)
 	if hcache.has(key):
@@ -177,19 +240,18 @@ func _cached_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int]) -> int:
 	return h
 
 
-## Tree height for a column (0 = no tree). Trees only grow on grass tops
-## (above the beach line), placed by a deterministic integer hash so tree
-## positions are stable per seed without extra noise instances.
+## Tree height for a column (0 = no tree). Trees only grow on grass tops,
+## placed by a deterministic integer hash so tree positions are stable per
+## seed without extra noise instances.
 func _cached_tree_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int], tcache: Dictionary[Vector2i, int]) -> int:
 	var key := Vector2i(wx, wz)
 	if tcache.has(key):
 		return tcache[key]
 	var th := 0
 	var h := _cached_height(wx, wz, hcache)
-	if h > Constants.BEACH_HEIGHT and h < Constants.CHUNK_SIZE_Y - 12:
-		if _hash01(wx, wz, world_seed) < Constants.TREE_CHANCE:
-			# Make sure the trunk base isn't hovering over a carved cave mouth.
-			if not _is_cave(wx, h, wz, h):
+	if h > Constants.SEA_LEVEL + 1 and h < Constants.CHUNK_SIZE_Y - 12:
+		if not _is_beach(wx, wz, h, hcache):
+			if _hash01(wx, wz, world_seed) < Constants.TREE_CHANCE:
 				th = 4 + int(_hash01(wx * 3 + 1, wz * 7 + 3, world_seed) * 3.0)  # 4..6
 	tcache[key] = th
 	return th
@@ -202,7 +264,7 @@ func _cached_tree_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int], tc
 ##  * "Spaghetti" tunnels: two independent smooth 3D fields; carve where BOTH
 ##    |a| and |b| are near zero. Each field's zero-set is a winding surface,
 ##    and the intersection of two surfaces is a long 1D worm — natural
-##    branching tunnels.
+##    branching tunnels. Cave mouths appear where tunnels meet cliff walls.
 ## PERF: 3D noise per underground block is the expensive part of generation
 ## (~3 samples per block below the surface). If needed: early-out on the
 ## cheapest field, or sample on a coarse 4^3 grid and trilinearly interpolate.
@@ -212,17 +274,17 @@ func _is_cave(wx: int, wy: int, wz: int, surface_h: int) -> bool:
 	if wy > surface_h - Constants.CAVE_MIN_DEPTH:
 		return false  # never carve within a few blocks of the surface
 
-	# 0 at bedrock -> 1 near the surface; deeper = lower threshold = more caves.
+	# 0 at bedrock -> 1 near sea level; deeper = lower threshold = more caves.
 	var depth_frac := clampf(float(wy) / float(Constants.SEA_LEVEL), 0.0, 1.0)
 
 	var cheese := _cave_cheese.get_noise_3d(wx, wy, wz)
-	if cheese > lerpf(0.38, 0.62, depth_frac):
+	if cheese > lerpf(0.34, 0.60, depth_frac):
 		return true
 
 	var a := absf(_cave_worm_a.get_noise_3d(wx, wy, wz))
-	if a < 0.065:
+	if a < 0.08:
 		var b := absf(_cave_worm_b.get_noise_3d(wx, wy, wz))
-		if b < 0.065:
+		if b < 0.08:
 			return true
 	return false
 
@@ -230,6 +292,13 @@ func _is_cave(wx: int, wy: int, wz: int, surface_h: int) -> bool:
 ## Deterministic integer hash -> [0, 1). Stable across runs and platforms.
 func _hash01(x: int, z: int, s: int) -> float:
 	var h := x * 374761393 + z * 668265263 + s * 2246822519
+	h = (h ^ (h >> 13)) * 1274126177
+	h = h ^ (h >> 16)
+	return float(h & 0xFFFFFF) / float(0x1000000)
+
+
+func _hash3(x: int, y: int, z: int) -> float:
+	var h := x * 73856093 + y * 19349663 + z * 83492791 + world_seed * 2246822519
 	h = (h ^ (h >> 13)) * 1274126177
 	h = h ^ (h >> 16)
 	return float(h & 0xFFFFFF) / float(0x1000000)

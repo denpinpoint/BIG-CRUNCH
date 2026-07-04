@@ -19,6 +19,7 @@ var is_sprinting := false
 
 var _fall_distance := 0.0
 var _last_jump_press_ms: int = -10000
+var _hud: Node
 const _BASE_FOV := 80.0
 
 
@@ -38,7 +39,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		if not get_tree().paused and stats.alive:
+		# Clicking recaptures the mouse — unless a UI screen owns it.
+		if not get_tree().paused and stats.alive and not _ui_open():
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("jump") and not event.is_echo():
 		# Double-tap Space toggles flying (Creative only).
@@ -62,7 +64,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _walk_move(delta: float) -> void:
-	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	# While the inventory/furnace UI is open you coast to a stop but keep
+	# falling — the world doesn't pause, just your controls.
+	var input_dir := Vector2.ZERO if _ui_open() else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y))
 	if wish.length_squared() > 1.0:
 		wish = wish.normalized()
@@ -85,7 +89,7 @@ func _walk_move(delta: float) -> void:
 	if velocity.y < 0.0:
 		_fall_distance += -velocity.y * delta
 
-	if is_on_floor() and Input.is_action_pressed("jump"):
+	if is_on_floor() and Input.is_action_pressed("jump") and not _ui_open():
 		velocity.y = Constants.JUMP_VELOCITY
 
 	move_and_slide()
@@ -98,14 +102,15 @@ func _walk_move(delta: float) -> void:
 
 
 func _fly_move(_delta: float) -> void:
-	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var ui := _ui_open()
+	var input_dir := Vector2.ZERO if ui else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y))
 	var speed := Constants.FLY_SPRINT_SPEED if Input.is_action_pressed("sprint") else Constants.FLY_SPEED
 
 	velocity = wish * speed
-	if Input.is_action_pressed("jump"):
+	if Input.is_action_pressed("jump") and not ui:
 		velocity.y = speed
-	elif Input.is_action_pressed("crouch"):
+	elif Input.is_action_pressed("crouch") and not ui:
 		velocity.y = -speed
 	else:
 		velocity.y = 0.0
@@ -138,6 +143,12 @@ func can_interact() -> bool:
 		and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 		and not get_tree().paused
 	)
+
+
+func _ui_open() -> bool:
+	if _hud == null:
+		_hud = get_tree().get_first_node_in_group("hud")
+	return _hud != null and _hud.ui_open
 
 
 func respawn_at_spawn() -> void:

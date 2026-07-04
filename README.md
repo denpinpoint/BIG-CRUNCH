@@ -1,9 +1,11 @@
 # Voxelcraft
 
 A Minecraft-**inspired** voxel sandbox built from scratch in **Godot 4**
-(4.4+ required, developed against **4.6**) with typed GDScript. Infinite procedural terrain with caves and trees,
-threaded chunk streaming, mining & building, **Survival and Creative** modes,
-original passive & hostile mobs, a day/night cycle, and save/load.
+(4.4+ required, developed against **4.6**) with typed GDScript. Infinite
+procedural terrain with cliffs, caves, ore veins and trees, threaded chunk
+streaming, mining & building with a real inventory, 2x2 crafting, furnace
+smelting, **Survival and Creative** modes, original mobs, a full day/night
+cycle with a shader sky (stars, moon, sunsets), and save/load.
 
 All assets are original: block textures are generated procedurally at
 startup (flat colors + hash noise) and mobs are flat-colored voxel critters.
@@ -32,25 +34,30 @@ The window opens at 1280×720; the renderer is Forward+.
 | Sprint | **Shift** |
 | Crouch / fly down | **Ctrl** |
 | Fly (Creative) | **Double-tap Space** to toggle, Space/Ctrl for up/down |
-| Mine / attack | **Left mouse** (hold to mine in Survival) |
-| Place block | **Right mouse** |
-| Select block | **1–8** or **mouse wheel** |
+| Mine / attack | **Left mouse** (hold to mine in Survival — watch the cracks grow) |
+| Place block / use furnace | **Right mouse** (crouch to build against a furnace) |
+| Inventory | **E** (Creative: category tabs; Survival: 2x2 crafting) |
+| Select hotbar slot | **1–9** or **mouse wheel** |
 | Switch Survival ⇄ Creative | **F4** |
 | Save / Load | **F5** / **F9** (also autosaves on quit) |
 | Debug overlay | **F3** |
 
 ## What's implemented
 
-* **Chunked voxel world** — 16×64×16 chunks stored as flat `PackedByteArray`s,
+* **Chunked voxel world** — 16×96×16 chunks stored as flat `PackedByteArray`s,
   meshed with per-face culling into a single `ArrayMesh` per chunk (never one
   mesh per cube). Correct normals, clockwise winding, per-face atlas UVs with
   half-texel bleed protection.
-* **Procedural terrain** — seeded `FastNoiseLite` heightmap + ridged mountain
-  layer; grass/dirt/stone/sand layering, bedrock floor, sea-level water,
-  hash-placed trees. Fully deterministic: same seed ⇒ same world.
-* **Caves** — carved in the same deterministic world-space pass: 3D "cheese"
-  caverns plus two intersected "spaghetti" worm fields, depth-biased so the
-  surface isn't swiss-cheesed, never through bedrock, seamless across chunks.
+* **Procedural terrain** — seeded `FastNoiseLite` heightmap + ridged mountains
+  + terraced cliff noise (random sheer walls and plateaus); grass/dirt/stone
+  layering, bedrock floor, sea-level water, hash-placed trees, and sand that
+  only forms on real shorelines (columns at water height with water nearby).
+  Fully deterministic: same seed ⇒ same world.
+* **Caves & ores** — carved in the same deterministic world-space pass: 3D
+  "cheese" caverns plus two intersected "spaghetti" worm fields, depth-biased,
+  never through bedrock, seamless across chunks. Stone hides ore veins (coal
+  anywhere, iron below y=52, gold below y=26, diamond below y=14), each blob
+  a single consistent ore type; cave mouths open naturally in cliff faces.
 * **Infinite streaming** — chunks generate & mesh on `WorkerThreadPool`
   threads; the main thread only attaches finished meshes within a per-frame
   time budget. Border culling is exact even against unloaded neighbors
@@ -58,9 +65,17 @@ The window opens at 1280×720; the renderer is Forward+.
 * **Player** — capsule `CharacterBody3D` vs. trimesh chunk colliders, sprint,
   crouch, gravity/terminal velocity, fall damage, void rescue.
 * **Mining & building** — voxel DDA raycast (max reach 5), wireframe block
-  highlight, hold-to-mine with per-block hardness (instant in Creative),
-  placement with player-overlap rejection, minimal re-meshing (edited chunk +
-  touched border neighbors only).
+  highlight, hold-to-mine with per-block hardness and a progressive **crack
+  overlay on the block itself** (instant in Creative), placement with
+  player-overlap rejection, minimal re-meshing (edited chunk + touched border
+  neighbors only). Mined blocks drop into the inventory (grass→dirt,
+  stone→cobblestone, ores→minerals).
+* **Inventory, crafting & smelting** — you spawn with nothing. 36-slot
+  inventory (9-slot hotbar) with drag/split/merge stack handling; E opens it.
+  Survival gets a 2x2 shapeless crafting grid (planks, sticks, furnace,
+  mineral blocks); Creative gets category palette tabs with infinite stacks.
+  Placeable furnaces smelt ores/cobble/logs using coal or wood as fuel — in
+  the background, even while you wander off.
 * **Modes** — Creative: fly, instant break, infinite blocks, invulnerable,
   ignored by mobs, stats hidden. Survival: health + hunger (sprint drains,
   full hunger regens, starvation hurts), timed mining, fall damage, death &
@@ -70,11 +85,14 @@ The window opens at 1280×720; the renderer is Forward+.
   wanders/grazes/flees; the **Gnasher** (hostile) chases on sight, bites on
   contact, ignores Creative players. Spawner enforces per-type + global caps,
   daylight-grass rules for passives, night/dark-cave rules for hostiles.
-* **Day/night cycle** — rotating sun, blended sky/ambient, ties into hostile
-  spawning.
+* **Day/night cycle & sky** — custom sky shader with a visible sun disc,
+  sunrise/sunset horizon glow, a moon, and a twinkling star field; warm/cool
+  light temperature, blue moonlight fill at night, filmic tonemapping, and
+  fog that tracks the sky. Hostile spawning keys off the cycle.
 * **Save/load** — JSON in `user://voxelcraft_save.json`: seed, mode, player
-  state, spawn point, hotbar, time of day, and **only the edited blocks**
-  (a diff vs. procedural generation), so files stay tiny.
+  state, spawn point, the full inventory, furnace contents/progress, time of
+  day, and **only the edited blocks** (a diff vs. procedural generation), so
+  files stay tiny.
 
 ## Project layout
 
@@ -107,12 +125,16 @@ raycast are documented in comments where they live (`main/constants.gd`,
    (Survival).
 6. **Edits** — mine a tunnel across a chunk border and build a tower; only
    affected chunks re-mesh; you can't place a block inside yourself.
-7. **Hotbar** — 1–8/wheel changes the placed block; selection is highlighted.
-8. **Modes** — F4 mid-game: stats bar, flight, invulnerability, and mob
+7. **Inventory & hotbar** — you spawn empty-handed; mine wood/dirt and watch
+   them stack in the hotbar. E opens the inventory: drag stacks around,
+   right-click splits. Creative shows Blocks/Minerals/Items palette tabs.
+8. **Crafting & smelting** — log → 4 planks → sticks; 4 cobblestone → furnace;
+   place it, right-click it, smelt iron ore with coal into ingots.
+9. **Modes** — F4 mid-game: stats bar, flight, invulnerability, and mob
    aggression all flip instantly.
-9. **Mobs** — Woolbacks graze by day and flee when hit; Gnashers hunt at
+10. **Mobs** — Woolbacks graze by day and flee when hit; Gnashers hunt at
    night (or in caves), hit you in Survival, ignore you in Creative.
-10. **Save/load** — build, F5, quit, relaunch, Continue/F9: edits, position,
+11. **Save/load** — build, F5, quit, relaunch, Continue/F9: edits, position,
     mode, stats, and time of day are all back; the save stores only changed
     blocks.
 

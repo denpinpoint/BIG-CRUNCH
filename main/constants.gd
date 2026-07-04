@@ -14,7 +14,7 @@ class_name Constants
 
 # --- Chunk dimensions -------------------------------------------------------
 const CHUNK_SIZE_X: int = 16
-const CHUNK_SIZE_Y: int = 64  # world height; y=0 is bedrock
+const CHUNK_SIZE_Y: int = 96  # world height; y=0 is bedrock
 const CHUNK_SIZE_Z: int = 16
 
 # --- World / streaming ------------------------------------------------------
@@ -24,9 +24,9 @@ const DEFAULT_SEED: int = 1337
 const MESH_APPLY_BUDGET_USEC: int = 6000  # max time per frame spent attaching finished chunks
 
 # --- Terrain ----------------------------------------------------------------
-const SEA_LEVEL: int = 22
+const SEA_LEVEL: int = 30
 const BEACH_HEIGHT: int = SEA_LEVEL + 1  # columns at/below this get sand tops
-const CAVE_MIN_DEPTH: int = 6            # caves only carve this far below the surface
+const CAVE_MIN_DEPTH: int = 5            # caves only carve this far below the surface
 const TREE_CHANCE: float = 0.02          # per grass column
 
 # --- Player -----------------------------------------------------------------
@@ -47,6 +47,11 @@ const PLAYER_ATTACK_COOLDOWN: float = 0.4
 const PLACE_REPEAT_DELAY: float = 0.25
 const CREATIVE_BREAK_DELAY: float = 0.2
 const BREAK_TIME_PER_HARDNESS: float = 0.45  # seconds of mining per hardness point
+
+# --- Inventory / crafting / smelting ----------------------------------------
+const STACK_MAX: int = 64
+const SMELT_TIME: float = 4.0   # seconds per smelted item
+const FUEL_UNIT: float = SMELT_TIME  # burn time granted per 1.0 of fuel value
 
 # --- Survival stats ---------------------------------------------------------
 const MAX_HEALTH: float = 20.0

@@ -2,8 +2,8 @@
 
 There are intentionally **no image files** here.
 
-The block texture atlas (a 4×4 grid of 16 px tiles: grass top/side, dirt,
-stone, sand, wood side/top, leaves, water, bedrock) is **generated
+The texture atlas (an 8×8 grid of 16 px tiles: terrain blocks, ores,
+furnace, mineral blocks, and item icons like sticks and ingots) is **generated
 procedurally at startup** by `blocks/block_library.gd` from flat base colors
 plus deterministic hash noise — every pixel is original, nothing is copied
 from any other game.
