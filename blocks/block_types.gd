@@ -323,7 +323,9 @@ static func _build_defs() -> Dictionary:
 
 
 static func _tool_tile(tool_type: String, tier: int) -> int:
-	var row := {"pickaxe": 0, "axe": 1, "shovel": 2, "sword": 3}[tool_type]
+	# Explicit int: indexing a Dictionary yields Variant, which Godot 4.4+
+	# refuses to infer with ":=".
+	var row: int = {"pickaxe": 0, "axe": 1, "shovel": 2, "sword": 3}[tool_type]
 	return TILE_TOOL_BASE + row * 5 + tier
 
 
