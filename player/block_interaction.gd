@@ -25,6 +25,9 @@ var _break_progress := 0.0
 var _attack_cd := 0.0
 var _place_cd := 0.0
 var _creative_break_cd := 0.0
+var _eat_time := 0.0
+
+const EAT_TIME := 1.4  # seconds of holding right-click to finish a food
 
 
 func _ready() -> void:
@@ -58,12 +61,15 @@ func _physics_process(delta: float) -> void:
 			_attack_cd = Constants.PLAYER_ATTACK_COOLDOWN
 			var knock: Vector3 = dir
 			knock.y = 0.0
-			mob_hit["mob"].take_damage(Constants.PLAYER_ATTACK_DAMAGE, knock.normalized())
+			# Held sword (or other item) sets the melee damage; fists otherwise.
+			var dmg := BlockTypes.attack_damage(Inventory.selected_id())
+			mob_hit["mob"].take_damage(dmg, knock.normalized())
 		return
 
 	if block_hit.is_empty():
 		_hide_overlays()
 		_reset_break()
+		_eat_time = 0.0
 		return
 
 	var bp: Vector3i = block_hit["pos"]
@@ -75,8 +81,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		_reset_break()
 
-	if Input.is_action_pressed("place") and _place_cd <= 0.0:
-		_handle_placing(bp, block_hit["normal"])
+	if Input.is_action_pressed("place"):
+		_handle_use(bp, block_hit["normal"], delta)
+	else:
+		_eat_time = 0.0
 
 
 func _handle_breaking(bp: Vector3i, id: int, delta: float) -> void:
@@ -95,8 +103,10 @@ func _handle_breaking(bp: Vector3i, id: int, delta: float) -> void:
 	if bp != _break_target:
 		_break_target = bp
 		_break_progress = 0.0
-	# Hold-to-mine: time scales with block hardness.
-	_break_progress += delta / maxf(hard * Constants.BREAK_TIME_PER_HARDNESS, 0.05)
+	# Hold-to-mine: time scales with block hardness, sped up by the right
+	# tool held in hand (pickaxe on stone, axe on wood, ...).
+	var tool_mult := BlockTypes.tool_speed(Inventory.selected_id(), id)
+	_break_progress += delta * tool_mult / maxf(hard * Constants.BREAK_TIME_PER_HARDNESS, 0.05)
 	if _break_progress >= 1.0:
 		_break_block(bp, id, true)
 		_reset_break()
@@ -124,15 +134,43 @@ func _break_block(bp: Vector3i, id: int, give_drops: bool) -> void:
 	_world.set_block(bp, BlockTypes.AIR)
 
 
-func _handle_placing(bp: Vector3i, normal: Vector3i) -> void:
-	# Right-clicking a furnace opens it (hold crouch to build against it).
-	if _world.get_block(bp) == BlockTypes.FURNACE and not Input.is_action_pressed("crouch"):
-		_get_hud().open_furnace(bp)
-		_place_cd = Constants.PLACE_REPEAT_DELAY
-		return
+## Right-click handler: use a block (furnace/table/bed), eat held food, or
+## place the held block. Crouch forces "build against it" over "use it".
+func _handle_use(bp: Vector3i, normal: Vector3i, delta: float) -> void:
+	var target := _world.get_block(bp)
+	if not Input.is_action_pressed("crouch") and _place_cd <= 0.0:
+		match target:
+			BlockTypes.FURNACE:
+				_get_hud().open_furnace(bp)
+				_place_cd = Constants.PLACE_REPEAT_DELAY
+				_eat_time = 0.0
+				return
+			BlockTypes.CRAFTING_TABLE:
+				_get_hud().open_table()
+				_place_cd = Constants.PLACE_REPEAT_DELAY
+				_eat_time = 0.0
+				return
+			BlockTypes.BED:
+				_use_bed(bp)
+				_place_cd = Constants.PLACE_REPEAT_DELAY
+				_eat_time = 0.0
+				return
 
 	var id := Inventory.selected_id()
-	if id == 0 or not BlockTypes.is_block(id):
+
+	# Hold-to-eat food that isn't a placeable block.
+	if BlockTypes.food_value(id) > 0.0 and not BlockTypes.is_block(id):
+		if GameMode.is_creative() or _player.stats.hunger >= Constants.MAX_HUNGER:
+			return
+		_eat_time += delta
+		if _eat_time >= EAT_TIME:
+			_eat_time = 0.0
+			if _player.stats.try_eat_selected():
+				_get_hud().show_message("Ate %s" % BlockTypes.block_name(id))
+		return
+	_eat_time = 0.0
+
+	if _place_cd > 0.0 or id == 0 or not BlockTypes.is_block(id):
 		return  # nothing placeable in hand
 	var cell := bp + normal
 	var current: int = _world.get_block(cell)
@@ -142,10 +180,21 @@ func _handle_placing(bp: Vector3i, normal: Vector3i) -> void:
 	if _intersects_player(cell):
 		return  # never build a block inside your own body
 	# TODO: also reject cells overlapping mobs.
-	_world.set_block(cell, id)
+	# Stairs orient so their tall side points the way you're facing.
+	var place_id := id
+	if BlockTypes.is_stairs(id):
+		place_id = BlockTypes.stair_variant(id, -_camera.global_transform.basis.z)
+	_world.set_block(cell, place_id)
 	if GameMode.is_survival():
 		Inventory.consume_selected(1)
 	_place_cd = Constants.PLACE_REPEAT_DELAY
+
+
+## Sleeping in a bed just stores the spawn point (no fast-forward yet).
+func _use_bed(bp: Vector3i) -> void:
+	_player.spawn_point = Vector3(bp) + Vector3(0.5, 1.0, 0.5)
+	_get_hud().show_message("Spawn point set")
+	# TODO: skip to morning when it's night and no monsters are near.
 
 
 func _reset_break() -> void:

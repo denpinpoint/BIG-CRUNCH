@@ -14,7 +14,7 @@ extends Node
 ## the world naturally. TODO: persistent named mobs.
 
 const SAVE_PATH := "user://voxelcraft_save.json"
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 
 
 func has_save() -> bool:

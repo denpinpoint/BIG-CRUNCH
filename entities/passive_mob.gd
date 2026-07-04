@@ -86,5 +86,8 @@ func _on_hurt() -> void:
 
 
 func _drop_loot() -> void:
-	# 1-2 wool tufts (Survival only — spawn() no-ops in Creative).
-	ItemDrop.spawn(get_parent(), global_position + Vector3.UP * 0.6, BlockTypes.WOOL, randi_range(1, 2))
+	# A wool block + 1-2 raw mutton (Survival only — spawn() no-ops in
+	# Creative). Cook the mutton in a furnace for more hunger.
+	var pos := global_position + Vector3.UP * 0.6
+	ItemDrop.spawn(get_parent(), pos, BlockTypes.WOOL, 1)
+	ItemDrop.spawn(get_parent(), pos, BlockTypes.RAW_MUTTON, randi_range(1, 2))

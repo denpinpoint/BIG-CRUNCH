@@ -46,6 +46,7 @@ func _ready() -> void:
 	box.add_child(_button("Resume", resume))
 	box.add_child(_button("Settings", _open_settings))
 	box.add_child(_button("Save Game", _save))
+	box.add_child(_button("Main Menu", _main_menu))
 	box.add_child(_button("Save & Quit", _save_and_quit))
 
 	_status = Label.new()
@@ -94,6 +95,18 @@ func _save() -> void:
 		_flash_status("Game saved.")
 	else:
 		_flash_status("Nothing to save yet.")
+
+
+## Save & return to the title screen (like "Save and Quit to Title"). Saves,
+## then reloads the scene so a fresh start menu appears; the world, mobs and
+## furnaces are recreated and the inventory is cleared. "Continue" on the
+## title screen reloads exactly what we just saved.
+func _main_menu() -> void:
+	SaveManager.save_game()
+	get_tree().paused = false
+	Inventory.clear()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	get_tree().call_deferred("reload_current_scene")
 
 
 func _save_and_quit() -> void:

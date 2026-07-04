@@ -124,7 +124,7 @@ func _on_slot_clicked(slot: ItemSlot, button_index: int) -> void:
 			cursor_id = 0
 			cursor_count = 0
 		elif id == cursor_id:  # merge
-			var space := Constants.STACK_MAX - count
+			var space := BlockTypes.stack_max(id) - count
 			var moved := mini(space, cursor_count)
 			slot.store.call(id, count + moved)
 			cursor_count -= moved
@@ -142,7 +142,7 @@ func _on_slot_clicked(slot: ItemSlot, button_index: int) -> void:
 				cursor_id = id
 				cursor_count = take
 				slot.store.call(id, count - take)
-		elif (id == 0 or id == cursor_id) and count < Constants.STACK_MAX:
+		elif (id == 0 or id == cursor_id) and count < BlockTypes.stack_max(cursor_id):
 			slot.store.call(cursor_id, count + 1)  # drop exactly one
 			cursor_count -= 1
 			if cursor_count <= 0:

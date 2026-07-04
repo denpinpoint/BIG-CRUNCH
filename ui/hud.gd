@@ -149,6 +149,12 @@ func open_furnace(bp: Vector3i) -> void:
 		furnace_screen.open_at(bp)
 
 
+## Crafting-table right-clicks land here (from block_interaction).
+func open_table() -> void:
+	if _can_open_ui() and not ui_open:
+		inventory_screen.open_table()
+
+
 func close_ui() -> void:
 	if inventory_screen.visible:
 		inventory_screen.close()

@@ -20,7 +20,6 @@ func _process(delta: float) -> void:
 		return
 
 	# Hunger drains slowly with time, faster while sprinting.
-	# TODO: eating (food items restore hunger) — hook: eat(amount).
 	var drain := Constants.HUNGER_DRAIN_PER_SEC
 	if _player.is_sprinting:
 		drain += Constants.HUNGER_SPRINT_DRAIN_PER_SEC
@@ -34,17 +33,33 @@ func _process(delta: float) -> void:
 		take_damage(Constants.STARVE_DAMAGE_PER_SEC * delta, "starvation")
 
 
-func take_damage(amount: float, _source: String = "") -> void:
+func take_damage(amount: float, source: String = "") -> void:
 	if not alive or GameMode.is_creative() or amount <= 0.0:
 		return
-	_set_health(maxf(health - amount, 0.0))
+	# Worn armor soaks a fraction of incoming damage. Each defense point cuts
+	# 4% (capped at 80%), the classic simple armor model. Starvation and the
+	# void bypass armor.
+	var final := amount
+	if source != "starvation" and source != "the void":
+		var defense := Inventory.total_defense()
+		final *= 1.0 - clampf(defense * 0.04, 0.0, 0.8)
+	_set_health(maxf(health - final, 0.0))
 	if health <= 0.0:
 		_die()
 
 
-func eat(amount: float) -> void:
-	# TODO: called by food items once item drops/pickups exist.
-	_set_hunger(minf(hunger + amount, Constants.MAX_HUNGER))
+## Try to eat the item currently held in the hotbar (Survival). Returns true
+## if something was actually eaten (a food item and hunger wasn't full).
+func try_eat_selected() -> bool:
+	if GameMode.is_creative() or hunger >= Constants.MAX_HUNGER:
+		return false
+	var id := Inventory.selected_id()
+	var value := BlockTypes.food_value(id)
+	if value <= 0.0:
+		return false
+	_set_hunger(minf(hunger + value, Constants.MAX_HUNGER))
+	Inventory.consume_selected(1)
+	return true
 
 
 func _die() -> void:

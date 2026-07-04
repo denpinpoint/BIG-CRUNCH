@@ -2,10 +2,10 @@ extends Node
 ## Autoloaded as "BlockLibrary".
 ##
 ## Owns the block texture atlas, the chunk materials, and the mining crack
-## overlay materials. The atlas is a single 128x128 image (8x8 grid of 16px
-## tiles) generated procedurally at startup from flat base colors plus
+## overlay materials. The atlas is a single 256x256 image (16x16 grid of
+## 16px tiles) generated procedurally at startup from flat base colors plus
 ## deterministic hash noise — completely original, no external image files.
-## Item icons (stick, ingots, ...) are painted into the same atlas with
+## Item icons (tools, armor, food, ...) are painted into the same atlas with
 ## transparent backgrounds. A copy is written to user://atlas_debug.png.
 ##
 ## Everything here is built once in _ready() and never mutated afterwards, so
@@ -17,6 +17,7 @@ var atlas_image: Image
 var atlas_texture: ImageTexture
 var opaque_material: StandardMaterial3D
 var water_material: StandardMaterial3D
+var glass_material: StandardMaterial3D
 ## Mining crack overlays, index 0 (light cracks) .. CRACK_STAGES-1 (shattered).
 var crack_materials: Array[StandardMaterial3D] = []
 
@@ -48,8 +49,17 @@ const _TILE_COLORS := {
 	BlockTypes.TILE_IRON_INGOT: Color8(216, 216, 216),
 	BlockTypes.TILE_GOLD_INGOT: Color8(250, 208, 60),
 	BlockTypes.TILE_DIAMOND_ITEM: Color8(92, 220, 215),
-	BlockTypes.TILE_WOOL: Color8(236, 232, 225),
 	BlockTypes.TILE_GLOOM_SHARD: Color8(120, 70, 180),
+	BlockTypes.TILE_WOOL: Color8(236, 232, 225),
+	BlockTypes.TILE_BED_TOP: Color8(178, 44, 44),
+	BlockTypes.TILE_BED_SIDE: Color8(140, 100, 60),
+	BlockTypes.TILE_CRAFTING_TOP: Color8(168, 123, 73),
+	BlockTypes.TILE_CRAFTING_SIDE: Color8(160, 115, 68),
+	BlockTypes.TILE_GLASS: Color8(210, 235, 245),
+	BlockTypes.TILE_STAIR_PLANK: Color8(178, 133, 83),
+	BlockTypes.TILE_STAIR_COBBLE: Color8(118, 118, 118),
+	BlockTypes.TILE_MUTTON_RAW: Color8(205, 85, 85),
+	BlockTypes.TILE_MUTTON_COOKED: Color8(155, 92, 48),
 }
 
 const _ORE_SPECK_COLORS := {
@@ -59,11 +69,16 @@ const _ORE_SPECK_COLORS := {
 	BlockTypes.TILE_DIAMOND_ORE: Color8(92, 220, 215),
 }
 
-# Item icon tiles get a transparent background.
-const _ITEM_TILES := [
-	BlockTypes.TILE_STICK, BlockTypes.TILE_COAL_ITEM, BlockTypes.TILE_IRON_INGOT,
-	BlockTypes.TILE_GOLD_INGOT, BlockTypes.TILE_DIAMOND_ITEM,
+# Tier/material accent colors shared by tool + armor icon painters.
+const _TIER_COLORS := [
+	Color8(178, 133, 83),   # wood
+	Color8(125, 125, 125),  # stone
+	Color8(216, 216, 216),  # iron
+	Color8(250, 208, 60),   # gold
+	Color8(92, 220, 215),   # diamond
 ]
+const _ARMOR_COLORS := [Color8(216, 216, 216), Color8(250, 208, 60), Color8(92, 220, 215)]
+const _HANDLE := Color8(110, 80, 45)
 
 
 func _ready() -> void:
@@ -86,8 +101,15 @@ func _build_atlas() -> void:
 	atlas_image = Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
 	atlas_image.fill(Color8(255, 0, 255))  # unused tiles scream magenta
 
-	for tile: int in _TILE_COLORS.keys():
-		var base: Color = _TILE_COLORS[tile]
+	var tiles: Array = _TILE_COLORS.keys()
+	# Tool + armor icon tiles are computed, not listed.
+	for t in 20:
+		tiles.append(BlockTypes.TILE_TOOL_BASE + t)
+	for a in 12:
+		tiles.append(BlockTypes.TILE_ARMOR_BASE + a)
+
+	for tile: int in tiles:
+		var base: Color = _TILE_COLORS.get(tile, Color8(255, 255, 255))
 		var region := BlockTypes.tile_pixel_region(tile)
 		for y in px:
 			for x in px:
@@ -102,6 +124,18 @@ func _build_atlas() -> void:
 ## Per-pixel tile shading. Deterministic (hash-based), so the atlas is
 ## identical on every run and every machine.
 func _tile_pixel(tile: int, x: int, y: int, base: Color) -> Color:
+	# Computed icon ranges first.
+	if tile >= BlockTypes.TILE_TOOL_BASE and tile < BlockTypes.TILE_TOOL_BASE + 20:
+		var rel := tile - BlockTypes.TILE_TOOL_BASE
+		@warning_ignore("integer_division")
+		var tool_row := rel / 5
+		return _tool_pixel(tool_row, rel % 5, x, y)
+	if tile >= BlockTypes.TILE_ARMOR_BASE and tile < BlockTypes.TILE_ARMOR_BASE + 12:
+		var rel := tile - BlockTypes.TILE_ARMOR_BASE
+		@warning_ignore("integer_division")
+		var piece := rel / 3
+		return _armor_pixel(piece, _ARMOR_COLORS[rel % 3], x, y)
+
 	var n := _hash01(x + tile * 131, y + tile * 197)
 	var c := base
 	match tile:
@@ -125,12 +159,7 @@ func _tile_pixel(tile: int, x: int, y: int, base: Color) -> Color:
 		BlockTypes.TILE_COBBLE, BlockTypes.TILE_FURNACE_TOP:
 			c = _cobble_pixel(x, y, c)
 		BlockTypes.TILE_PLANKS:
-			if y % 4 == 3:  # horizontal plank gaps
-				c = c.darkened(0.35)
-			@warning_ignore("integer_division")
-			var seam := int(_hash01(y / 4 + 5, tile) * 15.0)
-			if x == seam:  # one vertical seam per plank
-				c = c.darkened(0.28)
+			c = _plank_pixel(x, y, c)
 		BlockTypes.TILE_COAL_ORE, BlockTypes.TILE_IRON_ORE, \
 		BlockTypes.TILE_GOLD_ORE, BlockTypes.TILE_DIAMOND_ORE:
 			c = _stone_like(x, y, c)
@@ -149,6 +178,37 @@ func _tile_pixel(tile: int, x: int, y: int, base: Color) -> Color:
 				c = c.darkened(0.3)  # beveled edge
 			elif x <= 4 and y <= 4:
 				c = c.lightened(0.18)  # corner highlight
+		BlockTypes.TILE_WOOL:
+			# soft weave: diagonal ridges + fluffy noise
+			if (x + y) % 4 == 0:
+				c = c.darkened(0.08)
+			if n > 0.8:
+				c = c.darkened(0.12)
+		BlockTypes.TILE_BED_TOP:
+			c = _bed_top_pixel(x, y, c)
+		BlockTypes.TILE_BED_SIDE:
+			# blanket overhang above, wooden frame below, dark feet
+			if y < 6:
+				c = _TILE_COLORS[BlockTypes.TILE_BED_TOP]
+				if y == 5:
+					c = c.darkened(0.2)
+			elif (x < 2 or x > 13) and y > 11:
+				c = c.darkened(0.4)
+		BlockTypes.TILE_CRAFTING_TOP:
+			c = _plank_pixel(x, y, c)
+			if x % 5 == 0 or y % 5 == 0:  # worktop grid
+				c = c.darkened(0.35)
+		BlockTypes.TILE_CRAFTING_SIDE:
+			c = _plank_pixel(x, y, c)
+			# tool silhouettes scribbled on the side
+			if (x - 4) * (x - 4) + (y - 7) * (y - 7) <= 4 or (absi(x - 10) <= 1 and y >= 5 and y <= 10):
+				c = c.darkened(0.45)
+		BlockTypes.TILE_GLASS:
+			return _glass_pixel(x, y, c)
+		BlockTypes.TILE_STAIR_PLANK, BlockTypes.TILE_STAIR_COBBLE:
+			return _stair_icon_pixel(x, y, c)
+		BlockTypes.TILE_MUTTON_RAW, BlockTypes.TILE_MUTTON_COOKED:
+			return _mutton_pixel(x, y, c, n)
 		BlockTypes.TILE_STICK:
 			return _stick_pixel(x, y, base, n)
 		BlockTypes.TILE_COAL_ITEM:
@@ -157,8 +217,6 @@ func _tile_pixel(tile: int, x: int, y: int, base: Color) -> Color:
 			return _ingot_pixel(x, y, base)
 		BlockTypes.TILE_DIAMOND_ITEM:
 			return _gem_pixel(x, y, base)
-		BlockTypes.TILE_WOOL:
-			return _lump_pixel(x, y, base, n)  # fluffy white puff
 		BlockTypes.TILE_GLOOM_SHARD:
 			return _shard_pixel(x, y, base)
 	# Subtle noise on everything so flat colors read as texture.
@@ -180,9 +238,69 @@ func _cobble_pixel(x: int, y: int, base: Color) -> Color:
 	return c
 
 
+func _plank_pixel(x: int, y: int, base: Color) -> Color:
+	var c := base
+	if y % 4 == 3:  # horizontal plank gaps
+		c = c.darkened(0.35)
+	@warning_ignore("integer_division")
+	var seam := int(_hash01(y / 4 + 5, 11) * 15.0)
+	if x == seam:  # one vertical seam per plank
+		c = c.darkened(0.28)
+	return c
+
+
 func _stone_like(x: int, y: int, base: Color) -> Color:
 	var n := _hash01(x + 311, y + 977)
 	return base.darkened((n - 0.5) * 0.16)
+
+
+func _bed_top_pixel(x: int, y: int, base: Color) -> Color:
+	var c := base
+	if x == 0 or x == 15 or y == 0 or y == 15:
+		return Color8(120, 85, 50)  # wooden frame rim
+	if y <= 4:
+		c = Color8(232, 228, 218)  # pillow
+		if y == 4:
+			c = c.darkened(0.18)
+	elif y == 5:
+		c = c.lightened(0.2)  # blanket fold
+	return c
+
+
+func _glass_pixel(x: int, y: int, base: Color) -> Color:
+	# Light frame, transparent middle, one diagonal sparkle streak.
+	if x == 0 or x == 15 or y == 0 or y == 15:
+		return Color(base.r, base.g, base.b, 0.85)
+	if x + y >= 8 and x + y <= 10 and x < 9:
+		return Color(base.r, base.g, base.b, 0.5)
+	return Color(0, 0, 0, 0)
+
+
+func _stair_icon_pixel(x: int, y: int, base: Color) -> Color:
+	# Side profile: low half in front, high half behind.
+	var filled := (y >= 8) or (x >= 8 and y >= 2)
+	if not filled:
+		return Color(0, 0, 0, 0)
+	var c := base
+	if y == 8 and x < 8 or y == 2 and x >= 8 or x == 8 and y < 8:
+		c = c.lightened(0.25)  # step edges
+	return c.darkened((_hash01(x, y) - 0.5) * 0.16)
+
+
+func _mutton_pixel(x: int, y: int, base: Color, n: float) -> Color:
+	# Meaty chop with a bone sticking out the top-right.
+	var dx := x - 7
+	var dy := y - 9
+	if dx * dx + dy * dy * 2 <= 26:
+		var c := base.darkened((n - 0.5) * 0.3)
+		if dx * dx + dy * dy * 2 <= 8:
+			c = c.lightened(0.2)  # juicy center
+		return c
+	if absi(x - 12) <= 1 and y >= 3 and y <= 6:
+		return Color8(235, 228, 210)  # bone
+	if (x - 12) * (x - 12) + (y - 3) * (y - 3) <= 2:
+		return Color8(245, 240, 226)  # bone knob
+	return Color(0, 0, 0, 0)
 
 
 func _stick_pixel(x: int, y: int, base: Color, n: float) -> Color:
@@ -241,6 +359,74 @@ func _shard_pixel(x: int, y: int, base: Color) -> Color:
 	return Color(0, 0, 0, 0)
 
 
+## Tool icons: shared anti-diagonal handle + a per-class head in the tier
+## color. Rows: 0 pickaxe, 1 axe, 2 shovel, 3 sword.
+func _tool_pixel(tool_row: int, tier: int, x: int, y: int) -> Color:
+	var head: Color = _TIER_COLORS[tier]
+	var d := x + y - 15  # 0..1 = on the anti-diagonal band
+	var on_handle := d >= 0 and d <= 1
+	match tool_row:
+		0:  # pickaxe: curved head band + drooping tips
+			if y >= 2 and y <= 3 and x >= 2 and x <= 13:
+				return _edge_shade(head, x, y)
+			if (x <= 3 or x >= 12) and y >= 4 and y <= 6:
+				return _edge_shade(head, x, y)
+			if on_handle and y >= 4 and y <= 13:
+				return _HANDLE
+		1:  # axe: blade block on the upper right
+			if x >= 7 and x <= 12 and y >= 1 and y <= 6 and not (x >= 11 and y >= 5):
+				return _edge_shade(head, x, y)
+			if on_handle and y >= 3 and y <= 13:
+				return _HANDLE
+		2:  # shovel: spade at the top
+			if x >= 9 and x <= 13 and y >= 1 and y <= 5 and absi(x - 11) + absi(y - 3) <= 3:
+				return _edge_shade(head, x, y)
+			if on_handle and y >= 5 and y <= 13:
+				return _HANDLE
+		3:  # sword: long blade, short cross-guard, stubby grip
+			if on_handle and y >= 2 and y <= 10:
+				return _edge_shade(head, x, y)
+			if y == 11 and x >= 2 and x <= 6:
+				return _HANDLE.darkened(0.2)  # guard
+			if on_handle and y >= 12 and y <= 14:
+				return _HANDLE
+	return Color(0, 0, 0, 0)
+
+
+func _armor_pixel(piece: int, color: Color, x: int, y: int) -> Color:
+	match piece:
+		0:  # helmet: dome + cheek guards
+			if y >= 4 and y <= 6 and x >= 4 and x <= 11:
+				return _edge_shade(color, x, y)
+			if y >= 7 and y <= 10 and (x >= 4 and x <= 5 or x >= 10 and x <= 11):
+				return _edge_shade(color, x, y)
+		1:  # chestplate: shoulders + torso
+			if y >= 3 and y <= 6 and (x >= 3 and x <= 5 or x >= 10 and x <= 12):
+				return _edge_shade(color, x, y)
+			if y >= 5 and y <= 12 and x >= 5 and x <= 10:
+				return _edge_shade(color, x, y)
+		2:  # leggings: belt + two legs
+			if y >= 3 and y <= 5 and x >= 4 and x <= 11:
+				return _edge_shade(color, x, y)
+			if y >= 6 and y <= 13 and (x >= 4 and x <= 6 or x >= 9 and x <= 11):
+				return _edge_shade(color, x, y)
+		3:  # boots: two Ls with soles
+			if y >= 6 and y <= 9 and (x >= 3 and x <= 5 or x >= 10 and x <= 12):
+				return _edge_shade(color, x, y)
+			if y >= 10 and y <= 12 and (x >= 3 and x <= 6 or x >= 9 and x <= 12):
+				return _edge_shade(color.darkened(0.2), x, y)
+	return Color(0, 0, 0, 0)
+
+
+func _edge_shade(c: Color, x: int, y: int) -> Color:
+	# Cheap top-left light / bottom-right shade so shapes read as 3D.
+	if (x + y) % 7 == 0:
+		return c.darkened(0.12)
+	if x % 5 == 0 or y % 6 == 0:
+		return c.lightened(0.12)
+	return c
+
+
 func _hash01(x: int, y: int) -> float:
 	var h := x * 374761393 + y * 668265263
 	h = (h ^ (h >> 13)) * 1274126177
@@ -265,6 +451,15 @@ func _build_materials() -> void:
 	water_material.roughness = 0.15
 	# Render both sides so the surface is visible from underwater too.
 	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	# Glass: alpha-scissor cutout — sharp fully-transparent panes with no
+	# transparency sorting headaches.
+	glass_material = StandardMaterial3D.new()
+	glass_material.albedo_texture = atlas_texture
+	glass_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	glass_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	glass_material.alpha_scissor_threshold = 0.4
+	glass_material.roughness = 0.1
 
 
 ## Minecraft-style progressive crack overlay: one 16x16 alpha texture per

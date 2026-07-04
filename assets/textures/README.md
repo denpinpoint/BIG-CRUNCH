@@ -2,11 +2,12 @@
 
 There are intentionally **no image files** here.
 
-The texture atlas (an 8×8 grid of 16 px tiles: terrain blocks, ores,
-furnace, mineral blocks, and item icons like sticks and ingots) is **generated
+The texture atlas (a 16×16 grid of 16 px tiles: terrain blocks, ores,
+furnace, glass, wool, bed, crafting table, stairs, mineral blocks, plus item
+icons like sticks, ingots, food, and every tool/armour piece) is **generated
 procedurally at startup** by `blocks/block_library.gd` from flat base colors
-plus deterministic hash noise — every pixel is original, nothing is copied
-from any other game.
+plus deterministic hash noise and small parametric shape painters — every
+pixel is original, nothing is copied from any other game.
 
 This deviates from the usual committed `atlas.png` on purpose:
 

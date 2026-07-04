@@ -34,12 +34,12 @@ The window opens at 1280×720; the renderer is Forward+.
 | Sprint | **Shift** |
 | Crouch / fly down | **Ctrl** |
 | Fly (Creative) | **Double-tap Space** to toggle, Space/Ctrl for up/down |
-| Mine / attack | **Left mouse** (hold to mine in Survival — watch the cracks grow) |
-| Place block / use furnace | **Right mouse** (crouch to build against a furnace) |
-| Inventory | **E** (Creative: category tabs; Survival: 2x2 crafting) |
+| Mine / attack | **Left mouse** (a held tool mines its block type faster; a sword hits harder) |
+| Place / use / eat | **Right mouse** (opens furnace, crafting table & bed; hold to eat held food; crouch to build against a block) |
+| Inventory | **E** (armor slots + 2x2 crafting; Creative adds category tabs) |
 | Select hotbar slot | **1–9** or **mouse wheel** |
 | Switch Survival ⇄ Creative | **F4** |
-| Pause menu | **Esc** (resume, settings, save, save & quit) |
+| Pause menu | **Esc** (resume, settings, save, main menu, save & quit) |
 | Save / Load | **F5** / **F9** (also autosaves on quit) |
 | Debug overlay | **F3** |
 
@@ -74,20 +74,37 @@ The window opens at 1280×720; the renderer is Forward+.
   neighbors only). In Survival, mined blocks pop out as pickup drops
   (grass→dirt, stone→cobblestone, ores→minerals).
 * **Inventory, crafting & smelting** — you spawn with nothing. 36-slot
-  inventory (9-slot hotbar) with drag/split/merge stack handling; E opens it.
-  Survival gets a 2x2 shapeless crafting grid (planks, sticks, furnace,
-  mineral blocks); Creative gets category palette tabs with infinite stacks.
-  Placeable furnaces smelt ores/cobble/logs using coal or wood as fuel — in
-  the background, even while you wander off.
+  inventory (9-slot hotbar) + 4 armor slots, with drag/split/merge stack
+  handling and per-item stack limits (tools/armor don't stack); E opens it.
+  Crafting uses **shape-based recipes** (pattern matters, not just counts),
+  with a 1x1 result slot. The 2x2 inventory grid makes planks, sticks and a
+  crafting table; **place a Crafting Table and right-click it** for the 3x3
+  grid that builds tools, armour, stairs and the furnace. Creative adds
+  category palette tabs (Blocks / Minerals / Items / Gear) with infinite
+  stacks. Placeable **furnaces** smelt ores→ingots, cobble→stone, sand→glass,
+  logs→charcoal and raw→cooked mutton using coal/wood as fuel — in the
+  background, even while you wander off.
+* **Tools, armour & food** — five tiers of pickaxe/axe/shovel/sword (wood→
+  diamond): the matching tool mines its block class several times faster,
+  swords deal more melee damage. Iron/gold/diamond armour (helmet/chestplate/
+  leggings/boots) equips into the armour slots and soaks incoming damage.
+  Raw mutton (dropped by Woolbacks) is edible; cook it in a furnace for more
+  hunger. Hold right-click to eat.
+* **More blocks** — glass (smelted from sand, see-through with proper face
+  culling), plank & cobblestone **stairs** (custom half-step geometry that
+  orients to your facing, no texture stretching), wool (dropped as a block),
+  a **bed** (crafted from wool + planks; right-click to set your spawn point),
+  and the crafting table.
 * **Item drops (Survival)** — mined blocks and slain mobs spawn real pickup
   entities (billboard sprites with voxel physics) that pop out, magnet
-  toward you, and auto-collect; Woolbacks drop wool tufts, Gnashers drop
-  gloom shards. Creative keeps its instant, dropless breaking.
-* **Pause & settings** — Esc pauses with resume/settings/save/quit; the
-  settings screen (also on the start menu) covers video (fullscreen, vsync,
-  render distance, FOV, shadows), audio (master volume/mute — the bus is
-  wired, sound assets are a TODO), and controls (mouse sensitivity, invert
-  Y), all applied live and persisted to user://settings.cfg.
+  toward you, and auto-collect; Woolbacks drop a wool block + raw mutton,
+  Gnashers drop gloom shards. Creative keeps its instant, dropless breaking.
+* **Pause & settings** — Esc pauses with resume / settings / save / main menu
+  / save & quit; the settings screen (also on the improved title screen)
+  covers video (fullscreen, vsync, render distance, FOV, shadows), audio
+  (master volume/mute — the bus is wired, sound assets are a TODO), and
+  controls (mouse sensitivity, invert Y), all applied live and persisted to
+  user://settings.cfg.
 * **Modes** — Creative: fly, instant break, infinite blocks, invulnerable,
   ignored by mobs, stats hidden. Survival: health + hunger (sprint drains,
   full hunger regens, starvation hurts), timed mining, fall damage, death &
@@ -102,9 +119,9 @@ The window opens at 1280×720; the renderer is Forward+.
   light temperature, blue moonlight fill at night, filmic tonemapping, and
   fog that tracks the sky. Hostile spawning keys off the cycle.
 * **Save/load** — JSON in `user://voxelcraft_save.json`: seed, mode, player
-  state, spawn point, the full inventory, furnace contents/progress, time of
-  day, and **only the edited blocks** (a diff vs. procedural generation), so
-  files stay tiny.
+  state, spawn point, the full inventory + worn armour, furnace contents/
+  progress, time of day, and **only the edited blocks** (a diff vs. procedural
+  generation), so files stay tiny.
 
 ## Project layout
 

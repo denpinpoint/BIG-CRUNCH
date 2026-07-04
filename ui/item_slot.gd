@@ -24,6 +24,11 @@ func _init(p_kind: String) -> void:
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(40, 40)
+	# Stay a fixed 40x40 square no matter what container holds us. Without
+	# this a lone result slot in an HBox stretches to the row's full height
+	# (a 1x2 rectangle) and STRETCH_SCALE distorts the icon.
+	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0.45)
 	style.set_border_width_all(2)

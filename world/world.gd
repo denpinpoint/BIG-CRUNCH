@@ -124,6 +124,7 @@ func _submit_jobs() -> void:
 			"edits": edits.duplicate(),  # snapshot; main thread keeps mutating its own
 			"generator": generator,
 			"opaque_mat": BlockLibrary.opaque_material,
+			"glass_mat": BlockLibrary.glass_material,
 			"water_mat": BlockLibrary.water_material,
 		}
 		_task_ids.append(WorkerThreadPool.add_task(_worker_build.bind(job), false, "voxel chunk build"))
@@ -141,7 +142,7 @@ func _worker_build(job: Dictionary) -> void:
 			data[Constants.local_block_index(Constants.block_to_local(wp))] = job_edits[wp]
 
 	var sampler := ChunkMesher.WorldSampler.new(cpos, data, job_edits, job["generator"])
-	var built := ChunkMesher.build(sampler, job["opaque_mat"], job["water_mat"])
+	var built := ChunkMesher.build(sampler, job["opaque_mat"], job["glass_mat"], job["water_mat"])
 
 	_results_mutex.lock()
 	_results.append({
@@ -249,7 +250,7 @@ func _remesh_now(cpos: Vector2i) -> void:
 		return
 	var chunk: Chunk = chunks[cpos]
 	var sampler := ChunkMesher.WorldSampler.new(cpos, chunk.data, edits, generator)
-	var built := ChunkMesher.build(sampler, BlockLibrary.opaque_material, BlockLibrary.water_material)
+	var built := ChunkMesher.build(sampler, BlockLibrary.opaque_material, BlockLibrary.glass_material, BlockLibrary.water_material)
 	chunk.apply_mesh(built["mesh"], built["shape"])
 
 
