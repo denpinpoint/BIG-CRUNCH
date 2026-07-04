@@ -78,7 +78,7 @@ func _find_spot(hostile: bool) -> Vector3:
 	if not _world.is_chunk_loaded(Constants.block_to_chunk(Vector3i(wx, 0, wz))):
 		return Vector3.INF
 
-	var surface := _world.surface_y(wx, wz)
+	var surface: int = _world.surface_y(wx, wz)
 	if surface < 1:
 		return Vector3.INF
 

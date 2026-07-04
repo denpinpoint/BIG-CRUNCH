@@ -1,7 +1,7 @@
 # Voxelcraft
 
-A Minecraft-**inspired** voxel sandbox built from scratch in **Godot 4.3+**
-with typed GDScript. Infinite procedural terrain with caves and trees,
+A Minecraft-**inspired** voxel sandbox built from scratch in **Godot 4**
+(4.4+ required, developed against **4.6**) with typed GDScript. Infinite procedural terrain with caves and trees,
 threaded chunk streaming, mining & building, **Survival and Creative** modes,
 original passive & hostile mobs, a day/night cycle, and save/load.
 
@@ -9,12 +9,13 @@ All assets are original: block textures are generated procedurally at
 startup (flat colors + hash noise) and mobs are flat-colored voxel critters.
 No trademarked names, textures, or sounds anywhere.
 
-![Godot 4.3+](https://img.shields.io/badge/Godot-4.3%2B-478cbf) ![GDScript](https://img.shields.io/badge/language-GDScript-blue)
+![Godot 4.4+](https://img.shields.io/badge/Godot-4.4%2B-478cbf) ![GDScript](https://img.shields.io/badge/language-GDScript-blue)
 
 ## Running it
 
-1. Install [Godot 4.3 or newer](https://godotengine.org/download) (the
-   standard build — no C# needed).
+1. Install [Godot 4.4 or newer](https://godotengine.org/download) — 4.6 is
+   what it's developed against (the standard build, no C# needed). Typed
+   dictionaries put the floor at 4.4.
 2. Open the project (`project.godot`) in the editor and press **F5**, or run
    `godot --path .` from this directory.
 3. Pick **Survival** or **Creative** in the start menu and play.

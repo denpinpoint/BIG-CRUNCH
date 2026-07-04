@@ -26,14 +26,14 @@ signal chunk_ready(cpos: Vector2i)
 
 var world_seed: int = Constants.DEFAULT_SEED
 var generator: TerrainGenerator
-## Player edits: world block pos (Vector3i) -> block id. This is the entire
-## delta between the procedural world and the actual world — it's also
-## exactly what gets saved to disk.
-var edits := {}
-var chunks := {}  # Vector2i -> Chunk
+## Player edits: world block pos -> block id. This is the entire delta
+## between the procedural world and the actual world — it's also exactly
+## what gets saved to disk.
+var edits: Dictionary[Vector3i, int] = {}
+var chunks: Dictionary[Vector2i, Chunk] = {}
 
 var _to_generate: Array[Vector2i] = []
-var _pending := {}  # Vector2i -> true (submitted to a worker)
+var _pending: Dictionary[Vector2i, bool] = {}  # submitted to a worker
 var _results: Array = []
 var _results_mutex := Mutex.new()
 var _task_ids: Array[int] = []
@@ -135,7 +135,7 @@ func _worker_build(job: Dictionary) -> void:
 	var data: PackedByteArray = job["generator"].generate_chunk_data(cpos)
 
 	# Overlay player edits that fall inside this chunk.
-	var job_edits: Dictionary = job["edits"]
+	var job_edits: Dictionary[Vector3i, int] = job["edits"]
 	for wp: Vector3i in job_edits.keys():
 		if Constants.block_to_chunk(wp) == cpos:
 			data[Constants.local_block_index(Constants.block_to_local(wp))] = job_edits[wp]
@@ -269,7 +269,7 @@ func is_chunk_loaded(cpos: Vector2i) -> bool:
 
 ## Rebuild the world from a seed + edit overlay (used by load, and by "new
 ## world" flows). Terrain regenerates from the seed; edits re-apply on top.
-func reset_world(new_seed: int, new_edits: Dictionary) -> void:
+func reset_world(new_seed: int, new_edits: Dictionary[Vector3i, int]) -> void:
 	_epoch += 1
 	for chunk: Chunk in chunks.values():
 		chunk.queue_free()

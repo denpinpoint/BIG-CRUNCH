@@ -91,7 +91,7 @@ func load_game() -> bool:
 		return false
 
 	# Rebuild the edit overlay with proper Vector3i keys.
-	var edits := {}
+	var edits: Dictionary[Vector3i, int] = {}
 	for key: String in parsed["edits"].keys():
 		var parts := key.split(",")
 		if parts.size() != 3:

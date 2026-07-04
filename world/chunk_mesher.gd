@@ -66,12 +66,12 @@ const FACES := [
 ## Resolves block ids during meshing, including outside this chunk's bounds.
 class WorldSampler:
 	var chunk_pos: Vector2i
-	var data: PackedByteArray        # this chunk's blocks (CoW snapshot)
-	var edits: Dictionary            # world block pos (Vector3i) -> id snapshot
-	var generator: TerrainGenerator  # shared, read-only, thread-safe
+	var data: PackedByteArray                 # this chunk's blocks snapshot
+	var edits: Dictionary[Vector3i, int]      # player-edit overlay snapshot
+	var generator: TerrainGenerator           # shared, read-only, thread-safe
 	var _base: Vector3i
 
-	func _init(p_chunk_pos: Vector2i, p_data: PackedByteArray, p_edits: Dictionary, p_gen: TerrainGenerator) -> void:
+	func _init(p_chunk_pos: Vector2i, p_data: PackedByteArray, p_edits: Dictionary[Vector3i, int], p_gen: TerrainGenerator) -> void:
 		chunk_pos = p_chunk_pos
 		data = p_data
 		edits = p_edits

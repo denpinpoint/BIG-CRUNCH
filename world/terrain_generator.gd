@@ -84,8 +84,8 @@ func generate_chunk_data(cpos: Vector2i) -> PackedByteArray:
 	var data := PackedByteArray()
 	data.resize(Constants.CHUNK_SIZE_X * Constants.CHUNK_SIZE_Y * Constants.CHUNK_SIZE_Z)
 
-	var hcache := {}
-	var tcache := {}
+	var hcache: Dictionary[Vector2i, int] = {}
+	var tcache: Dictionary[Vector2i, int] = {}
 	var base_x := cpos.x * Constants.CHUNK_SIZE_X
 	var base_z := cpos.y * Constants.CHUNK_SIZE_Z
 
@@ -105,7 +105,7 @@ func generate_chunk_data(cpos: Vector2i) -> PackedByteArray:
 ## Shared implementation behind generate_block/generate_chunk_data. The two
 ## caches memoize per-column surface heights and tree heights; passing fresh
 ## empty dictionaries gives identical (pure) results, just slower.
-func _block_at(wx: int, wy: int, wz: int, hcache: Dictionary, tcache: Dictionary) -> int:
+func _block_at(wx: int, wy: int, wz: int, hcache: Dictionary[Vector2i, int], tcache: Dictionary[Vector2i, int]) -> int:
 	if wy <= 0:
 		return BlockTypes.BEDROCK  # the world floor is always intact
 	if wy >= Constants.CHUNK_SIZE_Y:
@@ -168,7 +168,7 @@ func _block_at(wx: int, wy: int, wz: int, hcache: Dictionary, tcache: Dictionary
 	return BlockTypes.AIR
 
 
-func _cached_height(wx: int, wz: int, hcache: Dictionary) -> int:
+func _cached_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int]) -> int:
 	var key := Vector2i(wx, wz)
 	if hcache.has(key):
 		return hcache[key]
@@ -180,7 +180,7 @@ func _cached_height(wx: int, wz: int, hcache: Dictionary) -> int:
 ## Tree height for a column (0 = no tree). Trees only grow on grass tops
 ## (above the beach line), placed by a deterministic integer hash so tree
 ## positions are stable per seed without extra noise instances.
-func _cached_tree_height(wx: int, wz: int, hcache: Dictionary, tcache: Dictionary) -> int:
+func _cached_tree_height(wx: int, wz: int, hcache: Dictionary[Vector2i, int], tcache: Dictionary[Vector2i, int]) -> int:
 	var key := Vector2i(wx, wz)
 	if tcache.has(key):
 		return tcache[key]

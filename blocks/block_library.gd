@@ -49,7 +49,7 @@ func get_block_icon(block_id: int) -> AtlasTexture:
 func _build_atlas() -> void:
 	var px := BlockTypes.TILE_PIXELS
 	var size := BlockTypes.ATLAS_TILES * px
-	atlas_image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	atlas_image = Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
 	atlas_image.fill(Color8(255, 0, 255))  # unused tiles scream magenta
 
 	for tile: int in _TILE_COLORS.keys():

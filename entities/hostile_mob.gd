@@ -43,8 +43,10 @@ func _build_visual() -> void:
 func _ai(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
 
-	# Mobs do not target or damage Creative players.
-	var can_hunt := (
+	# Mobs do not target or damage Creative players. Explicit bool type:
+	# `player.stats.alive` is a dynamic (Variant) access, and Godot 4.4+
+	# refuses to infer `:=` from a Variant expression.
+	var can_hunt: bool = (
 		GameMode.is_survival()
 		and player != null and is_instance_valid(player)
 		and player.stats.alive
