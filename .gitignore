@@ -1,20 +1,8 @@
-# Dependencies
-node_modules/
+# Godot 4 generated files
+.godot/
+*.translation
+export_presets.cfg
 
-# Build output
-dist/
-dist-ssr/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Editor / OS
-.vscode/*
-!.vscode/extensions.json
-.idea/
+# OS junk
 .DS_Store
-*.local
-
-# Vite cache
-.vite/
+Thumbs.db

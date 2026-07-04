@@ -1,0 +1,33 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Voxelcraft"
+config/description="A Minecraft-inspired voxel sandbox built with Godot 4: infinite procedural terrain, caves, survival & creative modes, mobs, and save/load."
+run/main_scene="res://main/Main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameMode="*res://player/game_mode.gd"
+BlockLibrary="*res://blocks/block_library.gd"
+SaveManager="*res://save/save_manager.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+textures/canvas_textures/default_texture_filter=0

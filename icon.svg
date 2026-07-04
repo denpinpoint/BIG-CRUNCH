@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="18" fill="#22303f"/>
+  <!-- simple isometric voxel cube -->
+  <polygon points="64,20 108,42 64,64 20,42" fill="#7ec850"/>
+  <polygon points="20,42 64,64 64,112 20,90" fill="#8a6a45"/>
+  <polygon points="108,42 64,64 64,112 108,90" fill="#6b4f33"/>
+  <polygon points="64,20 108,42 64,64 20,42" fill="none" stroke="#1d2a1a" stroke-width="3"/>
+  <polygon points="20,42 64,64 64,112 20,90" fill="none" stroke="#1d2a1a" stroke-width="3"/>
+  <polygon points="108,42 64,64 64,112 108,90" fill="none" stroke="#1d2a1a" stroke-width="3"/>
+</svg>

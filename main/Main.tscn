@@ -1,0 +1,29 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://main/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://world/world.gd" id="2_world"]
+[ext_resource type="Script" path="res://world/day_night.gd" id="3_daynight"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://entities/mob_spawner.gd" id="5_spawner"]
+[ext_resource type="PackedScene" path="res://ui/HUD.tscn" id="6_hud"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="World" type="Node3D" parent="."]
+script = ExtResource("2_world")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+shadow_enabled = true
+directional_shadow_max_distance = 150.0
+
+[node name="DayNight" type="Node" parent="."]
+script = ExtResource("3_daynight")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 40, 0.5)
+
+[node name="MobSpawner" type="Node" parent="."]
+script = ExtResource("5_spawner")
+
+[node name="HUD" parent="." instance=ExtResource("6_hud")]
