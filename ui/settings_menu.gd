@@ -101,14 +101,15 @@ func _section(parent: BoxContainer, text: String) -> void:
 
 
 func _check(parent: BoxContainer, text: String, key: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	parent.add_child(row)
-	row.add_child(_row_label(text))
+	# Put the label ON the checkbox so the whole "Fullscreen [x]" row is
+	# clickable — clicking the text used to hit a separate Label and do
+	# nothing, which read as "the button doesn't work".
 	var check := CheckBox.new()
+	check.text = text
 	check.button_pressed = Settings.get(key)
+	check.custom_minimum_size = Vector2(360, 28)
 	check.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
-	row.add_child(check)
+	parent.add_child(check)
 
 
 func _slider(parent: BoxContainer, text: String, key: String, minv: float, maxv: float, step: float, fmt: String, display_scale: float = 1.0) -> void:

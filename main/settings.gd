@@ -45,9 +45,14 @@ func look_sensitivity() -> float:
 
 
 func _apply_engine_settings() -> void:
-	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
-	if DisplayServer.window_get_mode() != mode:
-		DisplayServer.window_set_mode(mode)
+	# Go through the SceneTree window (rather than DisplayServer directly):
+	# it targets the game's own window reliably and, under Godot 4.6's
+	# embedded "Game" view, actually pops out to real fullscreen.
+	var win := get_window()
+	if win != null:
+		var mode := Window.MODE_FULLSCREEN if fullscreen else Window.MODE_WINDOWED
+		if win.mode != mode:
+			win.mode = mode
 	DisplayServer.window_set_vsync_mode(
 		DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED
 	)
