@@ -137,6 +137,10 @@ func _apply(delta: float) -> void:
 	# Sunset glow peaks when the sun crosses the horizon.
 	var sunset := clampf(1.0 - absf(elevation) / 0.28, 0.0, 1.0)
 
+	# User-toggleable shadows (settings menu).
+	_sun.shadow_enabled = Settings.shadows
+	_moon.shadow_enabled = Settings.shadows
+
 	# Sun: warm and weak at the horizon, bright white at noon.
 	_sun.light_energy = clampf(elevation * 1.5, 0.0, 1.25)
 	_sun.light_color = _SUN_WARM.lerp(_SUN_WHITE, clampf(elevation * 1.6, 0.0, 1.0))

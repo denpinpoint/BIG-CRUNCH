@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameMode="*res://player/game_mode.gd"
+Settings="*res://main/settings.gd"
 BlockLibrary="*res://blocks/block_library.gd"
 Inventory="*res://player/inventory.gd"
 SaveManager="*res://save/save_manager.gd"

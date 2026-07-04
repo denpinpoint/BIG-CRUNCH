@@ -11,6 +11,8 @@ var death_screen: DeathScreen
 var debug_overlay: DebugOverlay
 var inventory_screen: InventoryScreen
 var furnace_screen: FurnaceScreen
+var pause_menu: PauseMenu
+var settings_menu: SettingsMenu
 
 ## True while a container screen (inventory/furnace) is on screen.
 var ui_open: bool:
@@ -89,6 +91,10 @@ func _ready() -> void:
 	death_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(death_screen)
 
+	pause_menu = PauseMenu.new()
+	pause_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(pause_menu)
+
 	# --- Wiring ---
 	_player = get_tree().get_first_node_in_group("player")
 	if _player != null:
@@ -106,6 +112,14 @@ func _ready() -> void:
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(menu)
 
+	# Settings last = topmost, and it registers behind-most in the input
+	# order, so its Esc handling wins while it's open.
+	settings_menu = SettingsMenu.new()
+	settings_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(settings_menu)
+	pause_menu.settings_menu = settings_menu
+	menu.settings_menu = settings_menu
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug"):
@@ -117,9 +131,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _can_open_ui():
 			inventory_screen.open()
 			get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_cancel") and ui_open:
-		close_ui()
-		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel"):
+		# Esc during play: close container UIs first, otherwise pause.
+		# (While the game IS paused this handler never runs — the pause and
+		# settings menus process their own Esc in ALWAYS mode.)
+		if ui_open:
+			close_ui()
+			get_viewport().set_input_as_handled()
+		elif _can_open_ui():
+			pause_menu.open()
+			get_viewport().set_input_as_handled()
 
 
 ## Furnace right-clicks land here (from block_interaction).

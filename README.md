@@ -29,7 +29,7 @@ The window opens at 1280×720; the renderer is Forward+.
 | Action | Input |
 |---|---|
 | Move | **W A S D** |
-| Look | Mouse (click to capture, **Esc** to release) |
+| Look | Mouse (click to capture) |
 | Jump | **Space** (hold to bunny-hop) |
 | Sprint | **Shift** |
 | Crouch / fly down | **Ctrl** |
@@ -39,6 +39,7 @@ The window opens at 1280×720; the renderer is Forward+.
 | Inventory | **E** (Creative: category tabs; Survival: 2x2 crafting) |
 | Select hotbar slot | **1–9** or **mouse wheel** |
 | Switch Survival ⇄ Creative | **F4** |
+| Pause menu | **Esc** (resume, settings, save, save & quit) |
 | Save / Load | **F5** / **F9** (also autosaves on quit) |
 | Debug overlay | **F3** |
 
@@ -55,9 +56,11 @@ The window opens at 1280×720; the renderer is Forward+.
   Fully deterministic: same seed ⇒ same world.
 * **Caves & ores** — carved in the same deterministic world-space pass: 3D
   "cheese" caverns plus two intersected "spaghetti" worm fields, depth-biased,
-  never through bedrock, seamless across chunks. Stone hides ore veins (coal
-  anywhere, iron below y=52, gold below y=26, diamond below y=14), each blob
-  a single consistent ore type; cave mouths open naturally in cliff faces.
+  never through bedrock, seamless across chunks. Sparse "entrance regions"
+  let SOME worm tunnels breach the crust into walk-in cave mouths while most
+  of the network stays sealed. Stone hides ore veins (coal anywhere, iron
+  below y=52, gold below y=26, diamond below y=14), each blob a single
+  consistent ore type.
 * **Infinite streaming** — chunks generate & mesh on `WorkerThreadPool`
   threads; the main thread only attaches finished meshes within a per-frame
   time budget. Border culling is exact even against unloaded neighbors
@@ -68,14 +71,23 @@ The window opens at 1280×720; the renderer is Forward+.
   highlight, hold-to-mine with per-block hardness and a progressive **crack
   overlay on the block itself** (instant in Creative), placement with
   player-overlap rejection, minimal re-meshing (edited chunk + touched border
-  neighbors only). Mined blocks drop into the inventory (grass→dirt,
-  stone→cobblestone, ores→minerals).
+  neighbors only). In Survival, mined blocks pop out as pickup drops
+  (grass→dirt, stone→cobblestone, ores→minerals).
 * **Inventory, crafting & smelting** — you spawn with nothing. 36-slot
   inventory (9-slot hotbar) with drag/split/merge stack handling; E opens it.
   Survival gets a 2x2 shapeless crafting grid (planks, sticks, furnace,
   mineral blocks); Creative gets category palette tabs with infinite stacks.
   Placeable furnaces smelt ores/cobble/logs using coal or wood as fuel — in
   the background, even while you wander off.
+* **Item drops (Survival)** — mined blocks and slain mobs spawn real pickup
+  entities (billboard sprites with voxel physics) that pop out, magnet
+  toward you, and auto-collect; Woolbacks drop wool tufts, Gnashers drop
+  gloom shards. Creative keeps its instant, dropless breaking.
+* **Pause & settings** — Esc pauses with resume/settings/save/quit; the
+  settings screen (also on the start menu) covers video (fullscreen, vsync,
+  render distance, FOV, shadows), audio (master volume/mute — the bus is
+  wired, sound assets are a TODO), and controls (mouse sensitivity, invert
+  Y), all applied live and persisted to user://settings.cfg.
 * **Modes** — Creative: fly, instant break, infinite blocks, invulnerable,
   ignored by mobs, stats hidden. Survival: health + hunger (sprint drains,
   full hunger regens, starvation hurts), timed mining, fall damage, death &

@@ -82,7 +82,7 @@ func _center_chunk() -> Vector2i:
 
 func _update_desired_chunks() -> void:
 	var center := _center_chunk()
-	var r := Constants.RENDER_DISTANCE
+	var r: int = Settings.render_distance  # user-adjustable in the settings menu
 
 	# Queue missing chunks inside the render circle...
 	_to_generate.clear()
@@ -102,7 +102,7 @@ func _update_desired_chunks() -> void:
 
 	# Unload chunks beyond the unload ring (mesh + data freed; the edits
 	# overlay keeps every player change, so nothing is lost).
-	var unload_r := float(Constants.UNLOAD_DISTANCE)
+	var unload_r := float(r + 2)
 	for cpos: Vector2i in chunks.keys():
 		if Vector2(cpos - center).length() > unload_r:
 			chunks[cpos].queue_free()

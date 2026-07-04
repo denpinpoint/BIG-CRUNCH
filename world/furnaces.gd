@@ -39,16 +39,21 @@ func state_for(bp: Vector3i) -> Dictionary:
 	return states[bp]
 
 
-## A furnace block was mined: hand its contents to the player and forget it.
+## A furnace block was mined: eject its contents and forget it. In Survival
+## the contents scatter as drop entities; in Creative (where drops don't
+## exist) they go straight to the inventory so nothing silently vanishes.
 func on_broken(bp: Vector3i) -> void:
 	if not states.has(bp):
 		return
 	var state: Dictionary = states[bp]
+	var center := Vector3(bp) + Vector3.ONE * 0.5
 	for key: String in ["input", "fuel", "output"]:
 		var stack: Dictionary = state[key]
 		if stack["id"] != 0 and stack["count"] > 0:
-			# TODO: drop as item entities instead of teleporting to the player.
-			Inventory.add_item(stack["id"], stack["count"])
+			if GameMode.is_survival():
+				ItemDrop.spawn(_world, center, stack["id"], stack["count"])
+			else:
+				Inventory.add_item(stack["id"], stack["count"])
 	states.erase(bp)
 
 

@@ -113,13 +113,14 @@ func _handle_breaking(bp: Vector3i, id: int, delta: float) -> void:
 
 func _break_block(bp: Vector3i, id: int, give_drops: bool) -> void:
 	if id == BlockTypes.FURNACE:
-		_get_furnaces().on_broken(bp)  # hand over its contents first
+		_get_furnaces().on_broken(bp)  # eject its contents first
 	if give_drops:
 		var drop := BlockTypes.drop_for(id)
 		if drop != BlockTypes.AIR:
-			# TODO: spawn item-drop entities; leftovers vanish if the
-			# inventory is full.
-			Inventory.add_item(drop, 1)
+			# Real drop entity that pops out of the block and gets vacuumed
+			# up when you walk near it (Survival only — spawn() no-ops in
+			# Creative).
+			ItemDrop.spawn(_world, Vector3(bp) + Vector3.ONE * 0.5, drop, 1)
 	_world.set_block(bp, BlockTypes.AIR)
 
 

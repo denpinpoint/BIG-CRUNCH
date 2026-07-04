@@ -35,6 +35,8 @@ const COAL := 101
 const IRON_INGOT := 102
 const GOLD_INGOT := 103
 const DIAMOND := 104
+const WOOL := 105         # dropped by Woolbacks
+const GLOOM_SHARD := 106  # dropped by Gnashers
 
 # Texture atlas layout: ATLAS_TILES x ATLAS_TILES grid of TILE_PIXELS tiles.
 const ATLAS_TILES: int = 8
@@ -67,6 +69,8 @@ const TILE_COAL_ITEM := 22
 const TILE_IRON_INGOT := 23
 const TILE_GOLD_INGOT := 24
 const TILE_DIAMOND_ITEM := 25
+const TILE_WOOL := 26
+const TILE_GLOOM_SHARD := 27
 
 ## Registry: id -> properties.
 ##   block:    true = placeable world block; false = inventory-only item
@@ -179,6 +183,14 @@ const DEFS := {
 		"name": "Diamond", "block": false, "solid": false, "fluid": false, "hardness": 0.0,
 		"icon": TILE_DIAMOND_ITEM,
 	},
+	WOOL: {
+		"name": "Wool Tuft", "block": false, "solid": false, "fluid": false, "hardness": 0.0,
+		"icon": TILE_WOOL,
+	},
+	GLOOM_SHARD: {
+		"name": "Gloom Shard", "block": false, "solid": false, "fluid": false, "hardness": 0.0,
+		"icon": TILE_GLOOM_SHARD,
+	},
 }
 
 ## Creative inventory tabs: category name -> ordered item list.
@@ -199,7 +211,7 @@ const CREATIVE_CATEGORIES := [
 	},
 	{
 		"name": "Items",
-		"items": [STICK, COAL, IRON_INGOT, GOLD_INGOT, DIAMOND],
+		"items": [STICK, COAL, IRON_INGOT, GOLD_INGOT, DIAMOND, WOOL, GLOOM_SHARD],
 	},
 ]
 

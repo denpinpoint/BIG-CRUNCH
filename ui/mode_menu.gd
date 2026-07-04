@@ -1,9 +1,13 @@
 class_name ModeMenu
 extends Control
-## Start-of-world menu: pick Survival or Creative (or continue a saved game).
-## Pauses the tree while open; the world keeps streaming in behind it
-## (World runs in PROCESS_MODE_ALWAYS), so play starts instantly.
-## F4 live-toggles the mode later without touching this menu.
+## Start-of-world menu: pick Survival or Creative (or continue a saved game),
+## or tweak settings before diving in. Pauses the tree while open; the world
+## keeps streaming in behind it (World runs in PROCESS_MODE_ALWAYS), so play
+## starts instantly. F4 live-toggles the mode later without touching this menu.
+
+## Shared SettingsMenu instance, injected by hud.gd.
+var settings_menu: SettingsMenu
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -42,6 +46,8 @@ func _ready() -> void:
 
 	if SaveManager.has_save():
 		box.add_child(_button("Continue (load save)", _continue_save))
+
+	box.add_child(_button("Settings", func() -> void: settings_menu.open()))
 
 	box.add_child(_spacer(16))
 	var hint := Label.new()

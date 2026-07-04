@@ -86,5 +86,5 @@ func _on_hurt() -> void:
 
 
 func _drop_loot() -> void:
-	# TODO: spawn a pickup entity; for now just a stub resource id.
-	print("Woolback dropped: 1x wool_tuft (item entities are a TODO)")
+	# 1-2 wool tufts (Survival only — spawn() no-ops in Creative).
+	ItemDrop.spawn(get_parent(), global_position + Vector3.UP * 0.6, BlockTypes.WOOL, randi_range(1, 2))

@@ -48,6 +48,8 @@ const _TILE_COLORS := {
 	BlockTypes.TILE_IRON_INGOT: Color8(216, 216, 216),
 	BlockTypes.TILE_GOLD_INGOT: Color8(250, 208, 60),
 	BlockTypes.TILE_DIAMOND_ITEM: Color8(92, 220, 215),
+	BlockTypes.TILE_WOOL: Color8(236, 232, 225),
+	BlockTypes.TILE_GLOOM_SHARD: Color8(120, 70, 180),
 }
 
 const _ORE_SPECK_COLORS := {
@@ -155,6 +157,10 @@ func _tile_pixel(tile: int, x: int, y: int, base: Color) -> Color:
 			return _ingot_pixel(x, y, base)
 		BlockTypes.TILE_DIAMOND_ITEM:
 			return _gem_pixel(x, y, base)
+		BlockTypes.TILE_WOOL:
+			return _lump_pixel(x, y, base, n)  # fluffy white puff
+		BlockTypes.TILE_GLOOM_SHARD:
+			return _shard_pixel(x, y, base)
 	# Subtle noise on everything so flat colors read as texture.
 	c = c.darkened((n - 0.5) * 0.16)
 	if tile == BlockTypes.TILE_WATER:
@@ -216,6 +222,21 @@ func _gem_pixel(x: int, y: int, base: Color) -> Color:
 			return base.darkened(0.35)  # facet edge
 		if x + y < 12:
 			return base.lightened(0.25)  # sparkle side
+		return base
+	return Color(0, 0, 0, 0)
+
+
+@warning_ignore("integer_division")
+func _shard_pixel(x: int, y: int, base: Color) -> Color:
+	# Narrow jagged sliver from bottom-left to top-right.
+	var along := (x + (15 - y)) / 2  # 0..15 along the diagonal
+	var off := absi(x - (15 - y))    # distance across it
+	var half_width := 3 - absi(along - 8) / 3
+	if off <= half_width and along >= 2 and along <= 13:
+		if off == half_width:
+			return base.darkened(0.4)  # edge facet
+		if x % 3 == 0:
+			return base.lightened(0.3)  # glinting streaks
 		return base
 	return Color(0, 0, 0, 0)
 

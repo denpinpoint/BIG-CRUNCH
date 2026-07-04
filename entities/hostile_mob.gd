@@ -104,7 +104,9 @@ func _has_line_of_sight() -> bool:
 
 
 func _drop_loot() -> void:
-	# TODO: spawn a pickup entity; for now just a stub resource id.
-	print("Gnasher dropped: 1x gloom_shard (item entities are a TODO)")
+	# 0-2 gloom shards (Survival only — spawn() no-ops in Creative).
+	var amount := randi_range(0, 2)
+	if amount > 0:
+		ItemDrop.spawn(get_parent(), global_position + Vector3.UP * 0.9, BlockTypes.GLOOM_SHARD, amount)
 
 # TODO: ranged spitter / self-destruct variants extending this class.

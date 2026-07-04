@@ -20,6 +20,7 @@ var _cliff_noise: FastNoiseLite     # plateau/terrace mask -> sheer cliff walls
 var _cave_cheese: FastNoiseLite     # 3D blob/cavern noise
 var _cave_worm_a: FastNoiseLite     # 3D winding tunnel field A
 var _cave_worm_b: FastNoiseLite     # 3D winding tunnel field B
+var _entrance_noise: FastNoiseLite  # 2D mask: where tunnels may breach the surface
 var _ore_noise: FastNoiseLite       # high-frequency 3D blobs -> ore veins
 
 # Columns this close to an underwater column count as shoreline (sand).
@@ -69,6 +70,13 @@ func _init(seed_value: int) -> void:
 	_cave_worm_b.seed = seed_value + 7003
 	_cave_worm_b.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_cave_worm_b.frequency = 0.02
+
+	_entrance_noise = FastNoiseLite.new()
+	_entrance_noise.seed = seed_value + 303
+	_entrance_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_entrance_noise.frequency = 0.012
+	_entrance_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_entrance_noise.fractal_octaves = 2
 
 	_ore_noise = FastNoiseLite.new()
 	_ore_noise.seed = seed_value + 9001
@@ -272,7 +280,19 @@ func _is_cave(wx: int, wy: int, wz: int, surface_h: int) -> bool:
 	if wy <= 1:
 		return false  # keep the bedrock floor + one stone layer intact
 	if wy > surface_h - Constants.CAVE_MIN_DEPTH:
-		return false  # never carve within a few blocks of the surface
+		# Near/at the surface, carving is normally forbidden — EXCEPT inside
+		# designated "entrance regions" (a sparse low-frequency 2D mask),
+		# where worm tunnels are allowed to keep going and punch through the
+		# crust. That's what turns SOME caves into walk-in cave mouths while
+		# most of the network stays sealed underground.
+		var entrance := _entrance_factor(wx, wz)
+		if entrance <= 0.0:
+			return false
+		var width := 0.065 * entrance  # mouths narrow slightly vs. deep tunnels
+		if absf(_cave_worm_a.get_noise_3d(wx, wy, wz)) < width:
+			if absf(_cave_worm_b.get_noise_3d(wx, wy, wz)) < width:
+				return true
+		return false
 
 	# 0 at bedrock -> 1 near sea level; deeper = lower threshold = more caves.
 	var depth_frac := clampf(float(wy) / float(Constants.SEA_LEVEL), 0.0, 1.0)
@@ -287,6 +307,13 @@ func _is_cave(wx: int, wy: int, wz: int, surface_h: int) -> bool:
 		if b < 0.08:
 			return true
 	return false
+
+
+## 0 almost everywhere; ramps to 1 inside sparse entrance regions (roughly a
+## tenth of the map). Purely 2D + seeded, so entrances are deterministic and
+## chunk-border safe like everything else.
+func _entrance_factor(wx: int, wz: int) -> float:
+	return smoothstep(0.42, 0.58, _entrance_noise.get_noise_2d(wx, wz))
 
 
 ## Deterministic integer hash -> [0, 1). Stable across runs and platforms.

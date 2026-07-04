@@ -20,24 +20,23 @@ var is_sprinting := false
 var _fall_distance := 0.0
 var _last_jump_press_ms: int = -10000
 var _hud: Node
-const _BASE_FOV := 80.0
 
 
 func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 2  # layer 2 = player
 	collision_mask = 1   # collide with terrain only
-	camera.fov = _BASE_FOV
+	camera.fov = Settings.fov
 	GameMode.mode_changed.connect(_on_mode_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * Constants.MOUSE_SENSITIVITY)
-		head.rotate_x(-event.relative.y * Constants.MOUSE_SENSITIVITY)
+		var sens := Settings.look_sensitivity()
+		var pitch_sign := 1.0 if Settings.invert_y else -1.0
+		rotate_y(-event.relative.x * sens)
+		head.rotate_x(pitch_sign * event.relative.y * sens)
 		head.rotation.x = clampf(head.rotation.x, -PI / 2.0 + 0.01, PI / 2.0 - 0.01)
-	elif event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		# Clicking recaptures the mouse — unless a UI screen owns it.
 		if not get_tree().paused and stats.alive and not _ui_open():
@@ -121,7 +120,7 @@ func _fly_move(_delta: float) -> void:
 
 
 func _update_fov(delta: float) -> void:
-	var target := _BASE_FOV + (8.0 if is_sprinting or (flying and Input.is_action_pressed("sprint")) else 0.0)
+	var target: float = Settings.fov + (8.0 if is_sprinting or (flying and Input.is_action_pressed("sprint")) else 0.0)
 	camera.fov = lerpf(camera.fov, target, minf(delta * 10.0, 1.0))
 
 
