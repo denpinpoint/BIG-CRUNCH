@@ -137,7 +137,9 @@ func _break_block(bp: Vector3i, id: int, give_drops: bool) -> void:
 ## Right-click handler: use a block (furnace/table/bed), eat held food, or
 ## place the held block. Crouch forces "build against it" over "use it".
 func _handle_use(bp: Vector3i, normal: Vector3i, delta: float) -> void:
-	var target := _world.get_block(bp)
+	# Explicit int: _world is typed Node3D, so its script method get_block()
+	# is a dynamic (Variant) call that ":=" can't infer.
+	var target: int = _world.get_block(bp)
 	if not Input.is_action_pressed("crouch") and _place_cd <= 0.0:
 		match target:
 			BlockTypes.FURNACE:
