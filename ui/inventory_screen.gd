@@ -56,7 +56,9 @@ func open() -> void:
 func open_table() -> void:
 	_table_mode = true
 	_resize_craft(3)
-	super()
+	# Parent method has a different name than this one, so name it explicitly
+	# (bare super() would look for ContainerScreen.open_table, which is absent).
+	super.open()
 	_tab = 0
 	_rebuild()
 
