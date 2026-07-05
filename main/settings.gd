@@ -13,7 +13,7 @@ signal changed(key: String)
 const PATH := "user://settings.cfg"
 const KEYS := [
 	"fullscreen", "vsync", "render_distance", "fov", "shadows",
-	"master_volume", "muted", "mouse_sensitivity", "invert_y",
+	"master_volume", "muted", "mouse_sensitivity", "invert_y", "resource_pack",
 ]
 
 var fullscreen := false
@@ -25,6 +25,7 @@ var master_volume := 1.0   # 0..1 linear on the Master bus
 var muted := false
 var mouse_sensitivity := 1.0  # multiplier on Constants.MOUSE_SENSITIVITY
 var invert_y := false
+var resource_pack := "None"   # texture pack name; see ResourcePacks / BlockLibrary
 
 
 func _ready() -> void:

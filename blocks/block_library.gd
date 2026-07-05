@@ -82,7 +82,11 @@ const _HANDLE := Color8(110, 80, 45)
 
 
 func _ready() -> void:
-	_build_atlas()
+	_paint_procedural_atlas()
+	_dump_template_pack()      # one-time: export defaults so users can edit them
+	_apply_resource_pack()     # overlay the active pack's PNGs, if any
+	atlas_texture = ImageTexture.create_from_image(atlas_image)
+	atlas_image.save_png("user://atlas_debug.png")  # inspect the final atlas
 	_build_materials()
 	_build_crack_materials()
 
@@ -95,10 +99,21 @@ func get_icon(id: int) -> AtlasTexture:
 	return tex
 
 
-func _build_atlas() -> void:
+## Re-paint the procedural base + re-overlay the active pack, then hot-swap
+## the texture data in place. Because every material and UI icon references
+## the SAME atlas_texture resource with unchanged UVs, this repaints the whole
+## game live — no chunk re-mesh needed. Called by the settings menu.
+func reload_pack() -> void:
+	_paint_procedural_atlas()
+	_apply_resource_pack()
+	atlas_texture.update(atlas_image)
+
+
+func _paint_procedural_atlas() -> void:
 	var px := BlockTypes.TILE_PIXELS
 	var size := BlockTypes.ATLAS_TILES * px
-	atlas_image = Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+	if atlas_image == null:
+		atlas_image = Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
 	atlas_image.fill(Color8(255, 0, 255))  # unused tiles scream magenta
 
 	var tiles: Array = _TILE_COLORS.keys()
@@ -116,9 +131,70 @@ func _build_atlas() -> void:
 				var c := _tile_pixel(tile, x, y, base)
 				atlas_image.set_pixel(int(region.position.x) + x, int(region.position.y) + y, c)
 
-	atlas_texture = ImageTexture.create_from_image(atlas_image)
-	# Debug aid: inspect the generated atlas as a real PNG if you want.
-	atlas_image.save_png("user://atlas_debug.png")
+
+## Overlay the active resource pack's PNGs onto the procedural atlas. Each
+## tile whose "<name>.png" exists in the pack is resized to 16x16 (nearest)
+## and blitted over its atlas cell; missing tiles keep the procedural look.
+func _apply_resource_pack() -> void:
+	var dir := ResourcePacks.pack_dir(Settings.resource_pack)
+	if dir == "":
+		return
+	var px := BlockTypes.TILE_PIXELS
+	var names := BlockTypes.tile_names()
+	for tile: int in names:
+		var path := "%s/%s.png" % [dir, names[tile]]
+		if not FileAccess.file_exists(path):
+			continue
+		var img := Image.load_from_file(path)
+		if img == null:
+			push_warning("Resource pack: could not load %s" % path)
+			continue
+		if img.get_format() != Image.FORMAT_RGBA8:
+			img.convert(Image.FORMAT_RGBA8)
+		if img.get_width() != px or img.get_height() != px:
+			img.resize(px, px, Image.INTERPOLATE_NEAREST)
+		var region := BlockTypes.tile_pixel_region(tile)
+		atlas_image.blit_rect(img, Rect2i(0, 0, px, px), Vector2i(int(region.position.x), int(region.position.y)))
+
+
+## First run: write every default tile out to user://resource_packs/_template
+## as a correctly-named 16x16 PNG, so players see the exact filenames a pack
+## needs and can paint over the defaults. Skipped once the folder exists.
+func _dump_template_pack() -> void:
+	var dir := "%s/_template" % ResourcePacks.ROOT_USER
+	if DirAccess.dir_exists_absolute(dir):
+		return
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		return
+	var px := BlockTypes.TILE_PIXELS
+	var names := BlockTypes.tile_names()
+	for tile: int in names:
+		var region := BlockTypes.tile_pixel_region(tile)
+		var sub := atlas_image.get_region(
+			Rect2i(int(region.position.x), int(region.position.y), px, px)
+		)
+		sub.save_png("%s/%s.png" % [dir, names[tile]])
+	var readme := FileAccess.open("%s/README.txt" % dir, FileAccess.WRITE)
+	if readme != null:
+		readme.store_string(_TEMPLATE_README)
+		readme.close()
+
+
+const _TEMPLATE_README := """Voxelcraft resource pack
+========================
+
+This folder was auto-generated with every block/item texture the game uses,
+each a 16x16 PNG at its required filename. To make a pack:
+
+1. Copy this folder and rename it, e.g.  user://resource_packs/MyPack/
+2. Replace any PNGs you want (keep the filenames; 16x16 recommended, other
+   square sizes are resized down with nearest-neighbour).
+3. In-game: Settings -> Resource pack -> pick your pack. It applies live.
+
+Only the files you change need to exist; missing tiles fall back to the
+built-in procedural texture. Ships no third-party art — supply textures you
+have the right to use.
+"""
 
 
 ## Per-pixel tile shading. Deterministic (hash-based), so the atlas is

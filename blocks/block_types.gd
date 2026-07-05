@@ -477,3 +477,35 @@ static func tile_pixel_region(tile: int) -> Rect2:
 	var row := tile / ATLAS_TILES
 	var col := tile % ATLAS_TILES
 	return Rect2(col * TILE_PIXELS, row * TILE_PIXELS, TILE_PIXELS, TILE_PIXELS)
+
+
+## Resource-pack contract: atlas tile index -> canonical PNG filename (no
+## extension). A resource pack is a folder of 16x16 PNGs named like these;
+## any present file overrides that tile (see block_library._apply_resource_pack).
+static func tile_names() -> Dictionary:
+	var m := {
+		TILE_GRASS_TOP: "grass_top", TILE_GRASS_SIDE: "grass_side", TILE_DIRT: "dirt",
+		TILE_STONE: "stone", TILE_SAND: "sand", TILE_WOOD_SIDE: "log_side",
+		TILE_WOOD_TOP: "log_top", TILE_LEAVES: "leaves", TILE_WATER: "water",
+		TILE_BEDROCK: "bedrock", TILE_COBBLE: "cobblestone", TILE_PLANKS: "planks",
+		TILE_COAL_ORE: "coal_ore", TILE_IRON_ORE: "iron_ore", TILE_GOLD_ORE: "gold_ore",
+		TILE_DIAMOND_ORE: "diamond_ore", TILE_FURNACE_FRONT: "furnace_front",
+		TILE_FURNACE_TOP: "furnace_top", TILE_IRON_BLOCK: "iron_block",
+		TILE_GOLD_BLOCK: "gold_block", TILE_DIAMOND_BLOCK: "diamond_block",
+		TILE_STICK: "stick", TILE_COAL_ITEM: "coal", TILE_IRON_INGOT: "iron_ingot",
+		TILE_GOLD_INGOT: "gold_ingot", TILE_DIAMOND_ITEM: "diamond",
+		TILE_GLOOM_SHARD: "gloom_shard", TILE_WOOL: "wool", TILE_BED_TOP: "bed_top",
+		TILE_BED_SIDE: "bed_side", TILE_CRAFTING_TOP: "crafting_table_top",
+		TILE_CRAFTING_SIDE: "crafting_table_side", TILE_GLASS: "glass",
+		TILE_STAIR_PLANK: "plank_stairs_icon", TILE_STAIR_COBBLE: "cobblestone_stairs_icon",
+		TILE_MUTTON_RAW: "mutton_raw", TILE_MUTTON_COOKED: "mutton_cooked",
+	}
+	var classes := ["pickaxe", "axe", "shovel", "sword"]
+	for row in classes.size():
+		for tier in TOOL_TIERS:
+			m[TILE_TOOL_BASE + row * 5 + tier] = "%s_%s" % [TIER_NAMES[tier].to_lower(), classes[row]]
+	var pieces := ["helmet", "chestplate", "leggings", "boots"]
+	for piece in pieces.size():
+		for mat in ARMOR_MATERIAL_NAMES.size():
+			m[TILE_ARMOR_BASE + piece * 3 + mat] = "%s_%s" % [ARMOR_MATERIAL_NAMES[mat].to_lower(), pieces[piece]]
+	return m

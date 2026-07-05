@@ -46,6 +46,7 @@ func _ready() -> void:
 	_slider(box, "Render distance", "render_distance", 4.0, 12.0, 1.0, "%d chunks")
 	_slider(box, "Field of view", "fov", 60.0, 110.0, 1.0, "%d°")
 	_check(box, "Shadows", "shadows")
+	_pack_dropdown(box)
 
 	_section(box, "Audio")
 	_slider(box, "Master volume", "master_volume", 0.0, 1.0, 0.05, "%d%%", 100.0)
@@ -98,6 +99,28 @@ func _section(parent: BoxContainer, text: String) -> void:
 	label.modulate = Color(0.8, 0.9, 1.0)
 	parent.add_child(label)
 	parent.add_child(HSeparator.new())
+
+
+## Resource-pack picker: an OptionButton listing "None" + discovered packs.
+## Selecting one persists it and hot-swaps the atlas live via BlockLibrary.
+func _pack_dropdown(parent: BoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	row.add_child(_row_label("Resource pack"))
+
+	var opt := OptionButton.new()
+	opt.custom_minimum_size = Vector2(200, 0)
+	var packs := ResourcePacks.list()
+	opt.select(0)  # fall back to "None" if the saved pack folder is gone
+	for i in packs.size():
+		opt.add_item(packs[i], i)
+		if packs[i] == Settings.resource_pack:
+			opt.select(i)
+	opt.item_selected.connect(func(idx: int) -> void:
+		Settings.set_value("resource_pack", packs[idx])
+		BlockLibrary.reload_pack())
+	row.add_child(opt)
 
 
 func _check(parent: BoxContainer, text: String, key: String) -> void:
